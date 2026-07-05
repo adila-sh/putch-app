@@ -70,8 +70,10 @@ func main() {
 
 	app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:            "putch",
-		Width:            800,
-		Height:           600,
+		Width:            1280,
+		Height:           832,
+		MinWidth:         960,
+		MinHeight:        600,
 		Frameless:        true,
 		BackgroundColour: application.NewRGB(27, 38, 54),
 		URL:              "/",
