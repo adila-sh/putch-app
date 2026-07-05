@@ -23,7 +23,9 @@ import { Route as PanelCollectionsIndexRouteImport } from './routes/panel/collec
 import { Route as PanelWorkspacesCreateRouteImport } from './routes/panel/workspaces/create'
 import { Route as PanelEnvironmentsCreateRouteImport } from './routes/panel/environments/create'
 import { Route as PanelCollectionsCreateRouteImport } from './routes/panel/collections/create'
+import { Route as PanelGitPullRequestsIndexRouteImport } from './routes/panel/git/pull-requests/index'
 import { Route as PanelWorkspacesWorkspaceIdUpdateRouteImport } from './routes/panel/workspaces/$workspaceId/update'
+import { Route as PanelGitPullRequestsNumberRouteImport } from './routes/panel/git/pull-requests/$number'
 import { Route as PanelEnvironmentsEnvironmentIdUpdateRouteImport } from './routes/panel/environments/$environmentId/update'
 import { Route as PanelCollectionsCollectionIdUpdateRouteImport } from './routes/panel/collections/$collectionId/update'
 import { Route as PanelCollectionsCollectionIdRequestsIndexRouteImport } from './routes/panel/collections/$collectionId/requests/index'
@@ -99,10 +101,22 @@ const PanelCollectionsCreateRoute = PanelCollectionsCreateRouteImport.update({
   path: '/collections/create',
   getParentRoute: () => PanelRouteRoute,
 } as any)
+const PanelGitPullRequestsIndexRoute =
+  PanelGitPullRequestsIndexRouteImport.update({
+    id: '/git/pull-requests/',
+    path: '/git/pull-requests/',
+    getParentRoute: () => PanelRouteRoute,
+  } as any)
 const PanelWorkspacesWorkspaceIdUpdateRoute =
   PanelWorkspacesWorkspaceIdUpdateRouteImport.update({
     id: '/workspaces/$workspaceId/update',
     path: '/workspaces/$workspaceId/update',
+    getParentRoute: () => PanelRouteRoute,
+  } as any)
+const PanelGitPullRequestsNumberRoute =
+  PanelGitPullRequestsNumberRouteImport.update({
+    id: '/git/pull-requests/$number',
+    path: '/git/pull-requests/$number',
     getParentRoute: () => PanelRouteRoute,
   } as any)
 const PanelEnvironmentsEnvironmentIdUpdateRoute =
@@ -147,7 +161,9 @@ export interface FileRoutesByFullPath {
   '/panel/workspaces/': typeof PanelWorkspacesIndexRoute
   '/panel/collections/$collectionId/update': typeof PanelCollectionsCollectionIdUpdateRoute
   '/panel/environments/$environmentId/update': typeof PanelEnvironmentsEnvironmentIdUpdateRoute
+  '/panel/git/pull-requests/$number': typeof PanelGitPullRequestsNumberRoute
   '/panel/workspaces/$workspaceId/update': typeof PanelWorkspacesWorkspaceIdUpdateRoute
+  '/panel/git/pull-requests/': typeof PanelGitPullRequestsIndexRoute
   '/panel/collections/$collectionId/requests/create': typeof PanelCollectionsCollectionIdRequestsCreateRoute
   '/panel/collections/$collectionId/requests/': typeof PanelCollectionsCollectionIdRequestsIndexRoute
 }
@@ -168,7 +184,9 @@ export interface FileRoutesByTo {
   '/panel/workspaces': typeof PanelWorkspacesIndexRoute
   '/panel/collections/$collectionId/update': typeof PanelCollectionsCollectionIdUpdateRoute
   '/panel/environments/$environmentId/update': typeof PanelEnvironmentsEnvironmentIdUpdateRoute
+  '/panel/git/pull-requests/$number': typeof PanelGitPullRequestsNumberRoute
   '/panel/workspaces/$workspaceId/update': typeof PanelWorkspacesWorkspaceIdUpdateRoute
+  '/panel/git/pull-requests': typeof PanelGitPullRequestsIndexRoute
   '/panel/collections/$collectionId/requests/create': typeof PanelCollectionsCollectionIdRequestsCreateRoute
   '/panel/collections/$collectionId/requests': typeof PanelCollectionsCollectionIdRequestsIndexRoute
 }
@@ -190,7 +208,9 @@ export interface FileRoutesById {
   '/panel/workspaces/': typeof PanelWorkspacesIndexRoute
   '/panel/collections/$collectionId/update': typeof PanelCollectionsCollectionIdUpdateRoute
   '/panel/environments/$environmentId/update': typeof PanelEnvironmentsEnvironmentIdUpdateRoute
+  '/panel/git/pull-requests/$number': typeof PanelGitPullRequestsNumberRoute
   '/panel/workspaces/$workspaceId/update': typeof PanelWorkspacesWorkspaceIdUpdateRoute
+  '/panel/git/pull-requests/': typeof PanelGitPullRequestsIndexRoute
   '/panel/collections/$collectionId/requests/create': typeof PanelCollectionsCollectionIdRequestsCreateRoute
   '/panel/collections/$collectionId/requests/': typeof PanelCollectionsCollectionIdRequestsIndexRoute
 }
@@ -213,7 +233,9 @@ export interface FileRouteTypes {
     | '/panel/workspaces/'
     | '/panel/collections/$collectionId/update'
     | '/panel/environments/$environmentId/update'
+    | '/panel/git/pull-requests/$number'
     | '/panel/workspaces/$workspaceId/update'
+    | '/panel/git/pull-requests/'
     | '/panel/collections/$collectionId/requests/create'
     | '/panel/collections/$collectionId/requests/'
   fileRoutesByTo: FileRoutesByTo
@@ -234,7 +256,9 @@ export interface FileRouteTypes {
     | '/panel/workspaces'
     | '/panel/collections/$collectionId/update'
     | '/panel/environments/$environmentId/update'
+    | '/panel/git/pull-requests/$number'
     | '/panel/workspaces/$workspaceId/update'
+    | '/panel/git/pull-requests'
     | '/panel/collections/$collectionId/requests/create'
     | '/panel/collections/$collectionId/requests'
   id:
@@ -255,7 +279,9 @@ export interface FileRouteTypes {
     | '/panel/workspaces/'
     | '/panel/collections/$collectionId/update'
     | '/panel/environments/$environmentId/update'
+    | '/panel/git/pull-requests/$number'
     | '/panel/workspaces/$workspaceId/update'
+    | '/panel/git/pull-requests/'
     | '/panel/collections/$collectionId/requests/create'
     | '/panel/collections/$collectionId/requests/'
   fileRoutesById: FileRoutesById
@@ -365,11 +391,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PanelCollectionsCreateRouteImport
       parentRoute: typeof PanelRouteRoute
     }
+    '/panel/git/pull-requests/': {
+      id: '/panel/git/pull-requests/'
+      path: '/git/pull-requests'
+      fullPath: '/panel/git/pull-requests/'
+      preLoaderRoute: typeof PanelGitPullRequestsIndexRouteImport
+      parentRoute: typeof PanelRouteRoute
+    }
     '/panel/workspaces/$workspaceId/update': {
       id: '/panel/workspaces/$workspaceId/update'
       path: '/workspaces/$workspaceId/update'
       fullPath: '/panel/workspaces/$workspaceId/update'
       preLoaderRoute: typeof PanelWorkspacesWorkspaceIdUpdateRouteImport
+      parentRoute: typeof PanelRouteRoute
+    }
+    '/panel/git/pull-requests/$number': {
+      id: '/panel/git/pull-requests/$number'
+      path: '/git/pull-requests/$number'
+      fullPath: '/panel/git/pull-requests/$number'
+      preLoaderRoute: typeof PanelGitPullRequestsNumberRouteImport
       parentRoute: typeof PanelRouteRoute
     }
     '/panel/environments/$environmentId/update': {
@@ -418,7 +458,9 @@ interface PanelRouteRouteChildren {
   PanelWorkspacesIndexRoute: typeof PanelWorkspacesIndexRoute
   PanelCollectionsCollectionIdUpdateRoute: typeof PanelCollectionsCollectionIdUpdateRoute
   PanelEnvironmentsEnvironmentIdUpdateRoute: typeof PanelEnvironmentsEnvironmentIdUpdateRoute
+  PanelGitPullRequestsNumberRoute: typeof PanelGitPullRequestsNumberRoute
   PanelWorkspacesWorkspaceIdUpdateRoute: typeof PanelWorkspacesWorkspaceIdUpdateRoute
+  PanelGitPullRequestsIndexRoute: typeof PanelGitPullRequestsIndexRoute
   PanelCollectionsCollectionIdRequestsCreateRoute: typeof PanelCollectionsCollectionIdRequestsCreateRoute
   PanelCollectionsCollectionIdRequestsIndexRoute: typeof PanelCollectionsCollectionIdRequestsIndexRoute
 }
@@ -440,7 +482,9 @@ const PanelRouteRouteChildren: PanelRouteRouteChildren = {
     PanelCollectionsCollectionIdUpdateRoute,
   PanelEnvironmentsEnvironmentIdUpdateRoute:
     PanelEnvironmentsEnvironmentIdUpdateRoute,
+  PanelGitPullRequestsNumberRoute: PanelGitPullRequestsNumberRoute,
   PanelWorkspacesWorkspaceIdUpdateRoute: PanelWorkspacesWorkspaceIdUpdateRoute,
+  PanelGitPullRequestsIndexRoute: PanelGitPullRequestsIndexRoute,
   PanelCollectionsCollectionIdRequestsCreateRoute:
     PanelCollectionsCollectionIdRequestsCreateRoute,
   PanelCollectionsCollectionIdRequestsIndexRoute:

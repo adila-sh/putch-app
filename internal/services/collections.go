@@ -173,12 +173,94 @@ func (s *CollectionsService) Delete(id string) error {
 	return s.store.DeleteCollection(id)
 }
 
+// collectionExportVersion versiona o formato de export. Bump ao mudar o schema
+// de forma incompatível. O Import aceita esta versão e o formato legado (só
+// metadados da coleção, sem folders/requests) — o envelope é um superconjunto
+// do antigo, então JSON velho ainda desserializa (folders/requests vazios).
+const collectionExportVersion = 1
+
+// collectionExport é o envelope de export: a coleção + a árvore completa
+// (folders com hierarquia via ParentID + requests com todos os campos) + a
+// ordem manual dos containers. Environments NÃO entram: são escopados no
+// workspace, não na coleção — um export de environments seria outra feature.
+type collectionExport struct {
+	Version    int                 `json:"version"`
+	Collection Collection          `json:"collection"`
+	Folders    []exportFolder      `json:"folders"`
+	Requests   []exportRequest     `json:"requests"`
+	Orders     map[string][]string `json:"orders,omitempty"`
+}
+
+// exportFolder é um folder no arquivo. ParentID referencia o ID (do arquivo) do
+// folder pai; "" = folder direto na raiz da coleção. Os IDs são regenerados no
+// import — servem só para religar a hierarquia dentro do próprio arquivo.
+type exportFolder struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	ParentID string `json:"parentId"`
+}
+
+// exportRequest é uma request no arquivo, com todos os campos que definem seu
+// comportamento (body/auth/scripts/params/etc). FolderID referencia o folder
+// dono ("" = raiz da coleção).
+type exportRequest struct {
+	ID         string            `json:"id"`
+	Name       string            `json:"name"`
+	FolderID   string            `json:"folderId"`
+	URL        string            `json:"url"`
+	Method     string            `json:"method"`
+	Headers    map[string]string `json:"headers,omitempty"`
+	Params     map[string]string `json:"params,omitempty"`
+	Body       string            `json:"body,omitempty"`
+	BodyType   string            `json:"bodyType,omitempty"`
+	Form       map[string]string `json:"form,omitempty"`
+	Files      map[string]string `json:"files,omitempty"`
+	AuthType   string            `json:"authType,omitempty"`
+	AuthValue  string            `json:"authValue,omitempty"`
+	TimeoutMS  int               `json:"timeoutMs,omitempty"`
+	PreScript  string            `json:"preScript,omitempty"`
+	PostScript string            `json:"postScript,omitempty"`
+	IsFavorite bool              `json:"isFavorite,omitempty"`
+}
+
 func (s *CollectionsService) Export(id string) (string, error) {
 	c, err := s.FindByID(id)
 	if err != nil {
 		return "", err
 	}
-	payload := map[string]any{"collection": c}
+	folders, err := s.store.ListFolders(id)
+	if err != nil {
+		return "", err
+	}
+	requests, err := s.store.ListRequestsByCollection(id)
+	if err != nil {
+		return "", err
+	}
+	orders, err := s.store.GetOrders(id)
+	if err != nil {
+		return "", err
+	}
+	payload := collectionExport{
+		Version:    collectionExportVersion,
+		Collection: c,
+		Folders:    make([]exportFolder, 0, len(folders)),
+		Requests:   make([]exportRequest, 0, len(requests)),
+		Orders:     orders,
+	}
+	for _, f := range folders {
+		payload.Folders = append(payload.Folders, exportFolder{
+			ID: f.ID, Name: f.Name, ParentID: f.ParentID,
+		})
+	}
+	for _, r := range requests {
+		payload.Requests = append(payload.Requests, exportRequest{
+			ID: r.ID, Name: r.Name, FolderID: r.FolderID, URL: r.URL, Method: r.Method,
+			Headers: r.Headers, Params: r.Params, Body: r.Body, BodyType: r.BodyType,
+			Form: r.Form, Files: r.Files, AuthType: r.AuthType, AuthValue: r.AuthValue,
+			TimeoutMS: r.TimeoutMS, PreScript: r.PreScript, PostScript: r.PostScript,
+			IsFavorite: r.IsFavorite,
+		})
+	}
 	bytes, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
 		return "", err
@@ -187,23 +269,143 @@ func (s *CollectionsService) Export(id string) (string, error) {
 }
 
 func (s *CollectionsService) Import(fileContent string) (Collection, error) {
-	var payload struct {
-		Collection struct {
-			Name        string `json:"name"`
-			Description string `json:"description"`
-			Deprecated  bool   `json:"deprecated"`
-		} `json:"collection"`
-	}
+	var payload collectionExport
 	if err := json.Unmarshal([]byte(fileContent), &payload); err != nil {
 		return Collection{}, err
 	}
-	name := payload.Collection.Name
+	name := strings.TrimSpace(payload.Collection.Name)
 	if name == "" {
 		name = "Sem nome"
 	}
-	return s.Create(CollectionInput{
+	created, err := s.Create(CollectionInput{
 		Name:        name,
 		Description: payload.Collection.Description,
+		Pinned:      payload.Collection.Pinned,
 		Deprecated:  payload.Collection.Deprecated,
+		Bg:          payload.Collection.Bg,
 	})
+	if err != nil {
+		return Collection{}, err
+	}
+	// Sem transações no store: se a recriação da árvore falhar, apaga a coleção
+	// pela metade para não deixar lixo — import é tudo-ou-nada do ponto de vista
+	// do usuário.
+	if err := s.importTree(created.ID, payload); err != nil {
+		_ = s.store.DeleteCollection(created.ID)
+		return Collection{}, err
+	}
+	return s.FindByID(created.ID)
+}
+
+// importTree recria folders → requests → ordem numa coleção recém-criada,
+// regenerando todos os IDs. idMap traduz id-do-arquivo → id-novo e cobre folders
+// E requests, porque os manifestos de ordem referenciam ambos.
+func (s *CollectionsService) importTree(colID string, payload collectionExport) error {
+	idMap := map[string]string{}
+	if err := s.importFolders(colID, payload.Folders, idMap); err != nil {
+		return err
+	}
+	if err := s.importRequests(colID, payload.Requests, idMap); err != nil {
+		return err
+	}
+	s.importOrders(colID, payload.Orders, idMap)
+	return nil
+}
+
+// importFolders cria os folders em ordem de dependência: um filho só nasce
+// depois do pai (para o CreateFolder resolver o diretório pai). Repete enquanto
+// houver progresso; sobras com pai ausente/cíclico caem na raiz da coleção para
+// não serem perdidas.
+func (s *CollectionsService) importFolders(colID string, folders []exportFolder, idMap map[string]string) error {
+	pending := append([]exportFolder(nil), folders...)
+	for len(pending) > 0 {
+		progress := false
+		rest := pending[:0]
+		for _, f := range pending {
+			parentNew := ""
+			if parentOld := strings.TrimSpace(f.ParentID); parentOld != "" {
+				mapped, ok := idMap[parentOld]
+				if !ok {
+					rest = append(rest, f) // pai ainda não criado — tenta na próxima passada
+					continue
+				}
+				parentNew = mapped
+			}
+			created, err := s.store.CreateFolder(colID, parentNew, f.Name)
+			if err != nil {
+				return err
+			}
+			idMap[f.ID] = created.ID
+			progress = true
+		}
+		pending = rest
+		if !progress {
+			for _, f := range pending { // pai inexistente/ciclo → raiz da coleção
+				created, err := s.store.CreateFolder(colID, "", f.Name)
+				if err != nil {
+					return err
+				}
+				idMap[f.ID] = created.ID
+			}
+			break
+		}
+	}
+	return nil
+}
+
+// importRequests recria cada request no folder mapeado (pasta ausente → raiz) e
+// restaura o "fixado" via SetRequestFavorite (CreateRequest sempre nasce não
+// fixada).
+func (s *CollectionsService) importRequests(colID string, requests []exportRequest, idMap map[string]string) error {
+	for _, r := range requests {
+		folderNew := ""
+		if fid := strings.TrimSpace(r.FolderID); fid != "" {
+			if mapped, ok := idMap[fid]; ok {
+				folderNew = mapped
+			}
+		}
+		created, err := s.store.CreateRequest(store.Request{
+			Name: r.Name, CollectionID: colID, FolderID: folderNew,
+			URL: r.URL, Method: r.Method, Headers: r.Headers, Params: r.Params,
+			Body: r.Body, BodyType: r.BodyType, Form: r.Form, Files: r.Files,
+			AuthType: r.AuthType, AuthValue: r.AuthValue, TimeoutMS: r.TimeoutMS,
+			PreScript: r.PreScript, PostScript: r.PostScript,
+		})
+		if err != nil {
+			return err
+		}
+		idMap[r.ID] = created.ID
+		if r.IsFavorite {
+			if err := s.store.SetRequestFavorite(created.ID, true); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// importOrders restaura a ordem manual dos containers, remapeando o ID do
+// container (folder) e cada ID filho. Best-effort: ordem é conveniência, então
+// containers/filhos que não sobreviveram ao import são silenciosamente pulados.
+func (s *CollectionsService) importOrders(colID string, orders map[string][]string, idMap map[string]string) {
+	for containerOld, ids := range orders {
+		containerNew := ""
+		if containerOld != "" {
+			mapped, ok := idMap[containerOld]
+			if !ok {
+				continue
+			}
+			containerNew = mapped
+		}
+		remapped := make([]string, 0, len(ids))
+		for _, oldID := range ids {
+			if newID, ok := idMap[oldID]; ok {
+				remapped = append(remapped, newID)
+			}
+		}
+		if len(remapped) == 0 {
+			continue
+		}
+		_ = s.store.SetOrder(colID, containerNew, remapped)
+	}
 }

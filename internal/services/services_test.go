@@ -183,6 +183,150 @@ func TestCollectionsServiceExportImportRoundtrip(t *testing.T) {
 	}
 }
 
+// TestCollectionsServiceExportImportFullRoundtrip prova o objetivo da Fase 4:
+// exportar uma coleção com pastas aninhadas + requests (com auth/body/scripts) +
+// ordem manual e reimportar num store LIMPO reproduz a árvore inteira, com IDs
+// regenerados.
+func TestCollectionsServiceExportImportFullRoundtrip(t *testing.T) {
+	src := newStore(t)
+	svc := NewCollectionsService(src)
+
+	col, err := src.CreateCollection(store.CollectionInput{Name: "API", Description: "raiz", Deprecated: true, Bg: 3})
+	if err != nil {
+		t.Fatalf("CreateCollection: %v", err)
+	}
+	folderA, err := src.CreateFolder(col.ID, "", "Auth")
+	if err != nil {
+		t.Fatalf("CreateFolder A: %v", err)
+	}
+	folderB, err := src.CreateFolder(col.ID, folderA.ID, "Tokens") // aninhada em A
+	if err != nil {
+		t.Fatalf("CreateFolder B: %v", err)
+	}
+
+	// request na raiz, com todos os campos que definem comportamento
+	rootReq, err := src.CreateRequest(store.Request{
+		Name: "login", CollectionID: col.ID, Method: "POST", URL: "https://api/login",
+		Headers: map[string]string{"X-Api": "1"}, Params: map[string]string{"v": "2"},
+		Body: `{"user":"x"}`, BodyType: "raw",
+		AuthType: "bearer", AuthValue: "segredo-token", TimeoutMS: 5000,
+		PreScript: "pre()", PostScript: "post()",
+	})
+	if err != nil {
+		t.Fatalf("CreateRequest raiz: %v", err)
+	}
+	if err := src.SetRequestFavorite(rootReq.ID, true); err != nil {
+		t.Fatalf("SetRequestFavorite: %v", err)
+	}
+	if _, err := src.CreateRequest(store.Request{
+		Name: "refresh", CollectionID: col.ID, FolderID: folderB.ID,
+		Method: "GET", URL: "https://api/refresh", AuthType: "basic", AuthValue: "u:p",
+	}); err != nil {
+		t.Fatalf("CreateRequest aninhada: %v", err)
+	}
+
+	// ordem manual na raiz: folder antes da request
+	if err := src.SetOrder(col.ID, "", []string{folderA.ID, rootReq.ID}); err != nil {
+		t.Fatalf("SetOrder: %v", err)
+	}
+
+	dump, err := svc.Export(col.ID)
+	if err != nil {
+		t.Fatalf("Export: %v", err)
+	}
+
+	// Import num store totalmente separado prova que o dump é auto-contido.
+	dst := newStore(t)
+	svc2 := NewCollectionsService(dst)
+	imported, err := svc2.Import(dump)
+	if err != nil {
+		t.Fatalf("Import: %v", err)
+	}
+	if imported.ID == col.ID {
+		t.Fatal("Import devia regenerar o ID da coleção")
+	}
+	if imported.Name != "API" || !imported.Deprecated || imported.Bg != 3 {
+		t.Fatalf("metadados perdidos: %+v", imported)
+	}
+
+	// --- pastas: 2 no total, aninhamento preservado ---
+	folders, err := dst.ListFolders(imported.ID)
+	if err != nil {
+		t.Fatalf("ListFolders: %v", err)
+	}
+	if len(folders) != 2 {
+		t.Fatalf("esperava 2 pastas, veio %d", len(folders))
+	}
+	byName := map[string]store.Folder{}
+	for _, f := range folders {
+		byName[f.Name] = f
+	}
+	fa, okA := byName["Auth"]
+	fb, okB := byName["Tokens"]
+	if !okA || !okB {
+		t.Fatalf("pastas por nome ausentes: %+v", byName)
+	}
+	if fa.ParentID != "" {
+		t.Errorf("Auth devia ser raiz, ParentID=%q", fa.ParentID)
+	}
+	if fb.ParentID != fa.ID {
+		t.Errorf("Tokens devia aninhar em Auth (%s), ParentID=%q", fa.ID, fb.ParentID)
+	}
+	if fa.ID == folderA.ID || fb.ID == folderB.ID {
+		t.Error("IDs de pasta deviam ser regenerados")
+	}
+
+	// --- requests: 3 campos-a-campo ---
+	reqs, err := dst.ListRequestsByCollection(imported.ID)
+	if err != nil {
+		t.Fatalf("ListRequestsByCollection: %v", err)
+	}
+	if len(reqs) != 2 {
+		t.Fatalf("esperava 2 requests, veio %d", len(reqs))
+	}
+	reqByName := map[string]store.Request{}
+	for _, r := range reqs {
+		reqByName[r.Name] = r
+	}
+	login, okL := reqByName["login"]
+	if !okL {
+		t.Fatal("request 'login' ausente após import")
+	}
+	if login.ID == rootReq.ID {
+		t.Error("ID da request devia ser regenerado")
+	}
+	if login.Method != "POST" || login.URL != "https://api/login" ||
+		login.Body != `{"user":"x"}` || login.BodyType != "raw" ||
+		login.AuthType != "bearer" || login.AuthValue != "segredo-token" ||
+		login.TimeoutMS != 5000 || login.PreScript != "pre()" || login.PostScript != "post()" ||
+		login.Headers["X-Api"] != "1" || login.Params["v"] != "2" || login.FolderID != "" {
+		t.Fatalf("campos da request raiz não sobreviveram: %+v", login)
+	}
+	if !login.IsFavorite {
+		t.Error("favorito da request não foi restaurado")
+	}
+	refresh, okR := reqByName["refresh"]
+	if !okR {
+		t.Fatal("request 'refresh' ausente após import")
+	}
+	if refresh.FolderID != fb.ID {
+		t.Errorf("refresh devia ficar em Tokens (%s), FolderID=%q", fb.ID, refresh.FolderID)
+	}
+	if refresh.AuthType != "basic" || refresh.AuthValue != "u:p" {
+		t.Errorf("auth da request aninhada perdida: %+v", refresh)
+	}
+
+	// --- ordem manual da raiz remapeada ---
+	orders, err := dst.GetOrders(imported.ID)
+	if err != nil {
+		t.Fatalf("GetOrders: %v", err)
+	}
+	rootOrder := orders[""]
+	if len(rootOrder) != 2 || rootOrder[0] != fa.ID || rootOrder[1] != login.ID {
+		t.Fatalf("ordem da raiz não remapeada: %v (esperava [%s %s])", rootOrder, fa.ID, login.ID)
+	}
+}
+
 func TestRequestsServiceCRUDAndSend(t *testing.T) {
 	st := newStore(t)
 	cols := NewCollectionsService(st)

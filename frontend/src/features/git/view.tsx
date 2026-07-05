@@ -1,8 +1,23 @@
-import { Column, Container, Label, Title } from "@/components/ui";
+import {
+  Badge,
+  Column,
+  Container,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  Label,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  Title,
+} from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ErrorAlert } from "@/components/functional/error-alert";
+import { UnifiedDiff, computeDiff } from "@/components/functional/unified-diff";
 import { useSync } from "@/hooks/useSync";
 import { Events } from "@wailsio/runtime";
 import { useEffect, useState } from "react";
@@ -15,6 +30,14 @@ const STATUS_LABEL: Record<string, string> = {
   conflict: "conflito",
 };
 
+// Go serializa time.Time como string ISO (RFC3339) no fio, embora o binding
+// tipe como wrapper Time. Formata defensivamente para pt-BR.
+function formatDate(value: unknown): string {
+  if (!value) return "";
+  const d = new Date(value as string);
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleString("pt-BR");
+}
+
 export default function GitView() {
   const {
     account,
@@ -22,10 +45,21 @@ export default function GitView() {
     device,
     repos,
     lastPull,
+    commits,
+    branches,
+    selectedDiff,
     busy,
     error,
     load,
     refreshStatus,
+    loadHistory,
+    loadBranches,
+    checkout,
+    createBranch,
+    showFileDiff,
+    showCommitDiff,
+    clearDiff,
+    discardFile,
     startLogin,
     cancelLogin,
     logout,
@@ -41,16 +75,23 @@ export default function GitView() {
   const [message, setMessage] = useState("");
   const [remoteURL, setRemoteURL] = useState("");
   const [cloneURL, setCloneURL] = useState("");
+  const [newBranch, setNewBranch] = useState("");
+  // Confirmação inline de descarte (destrutivo) por caminho de arquivo.
+  const [confirmDiscard, setConfirmDiscard] = useState<string | null>(null);
 
   // O backend emite "github.changed" quando o estado de autenticação muda
-  // (login concluído, logout). Recarregamos conta e status nesse momento.
+  // (login concluído, logout). Recarregamos conta, status e — se houver repo —
+  // histórico e branches nesse momento.
   useEffect(() => {
     const off = Events.On("github.changed", () => {
-      void load();
-      void refreshStatus();
+      void (async () => {
+        await load();
+        await refreshStatus();
+        await Promise.all([loadHistory(), loadBranches()]);
+      })();
     });
     return () => off();
-  }, [load, refreshStatus]);
+  }, [load, refreshStatus, loadHistory, loadBranches]);
 
   const authed = account?.authenticated === true;
 
@@ -60,6 +101,7 @@ export default function GitView() {
     try {
       await commit(text);
       setMessage("");
+      await loadHistory();
     } catch {
       /* erro já está no store */
     }
@@ -84,6 +126,27 @@ export default function GitView() {
       setCloneURL("");
     } catch {
       /* erro já está no store */
+    }
+  };
+
+  const handleCreateBranch = async () => {
+    const name = newBranch.trim();
+    if (!name) return;
+    try {
+      await createBranch(name);
+      setNewBranch("");
+    } catch {
+      /* erro já está no store */
+    }
+  };
+
+  const handleDiscard = async (path: string, untracked: boolean) => {
+    try {
+      await discardFile(path, untracked);
+    } catch {
+      /* erro já está no store */
+    } finally {
+      setConfirmDiscard(null);
     }
   };
 
@@ -247,7 +310,7 @@ export default function GitView() {
           </CardContent>
         </Card>
 
-        {/* Conflitos */}
+        {/* Conflitos (fora das tabs — sempre visível quando existe) */}
         {status?.conflicted && (
           <Card>
             <CardHeader>
@@ -279,78 +342,258 @@ export default function GitView() {
           </Card>
         )}
 
-        {/* Ações */}
+        {/* Abas de git: Status | Histórico | Branches */}
         {status?.isRepo && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Alterações</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {status.changes.length > 0 ? (
-                <ul className="max-h-48 space-y-1 overflow-y-auto rounded-md border p-2 text-sm">
-                  {status.changes.map((c) => (
-                    <li key={c.path} className="flex justify-between gap-2">
-                      <span className="truncate font-mono">{c.path}</span>
-                      <span className="text-muted-foreground">
-                        {STATUS_LABEL[c.status] ?? c.status}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-muted-foreground">Nada a commitar.</p>
-              )}
+          <Tabs defaultValue="status">
+            <TabsList>
+              <TabsTrigger value="status">Status</TabsTrigger>
+              <TabsTrigger value="history">Histórico</TabsTrigger>
+              <TabsTrigger value="branches">Branches</TabsTrigger>
+            </TabsList>
 
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Mensagem do commit"
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") void handleCommit();
-                  }}
-                />
-                <Button disabled={busy || !message.trim() || status.clean} onClick={handleCommit}>
-                  Commit
-                </Button>
-              </div>
+            {/* ── Status: alterações, commit, push/pull, descarte por arquivo ── */}
+            <TabsContent value="status">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Alterações</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {status.changes.length > 0 ? (
+                    <ul className="max-h-64 space-y-1 overflow-y-auto rounded-md border p-2 text-sm">
+                      {status.changes.map((c) => {
+                        const untracked = c.status === "untracked";
+                        return (
+                          <li
+                            key={c.path}
+                            className="flex items-center justify-between gap-2 rounded px-1 py-0.5 hover:bg-accent"
+                          >
+                            <button
+                              type="button"
+                              className="min-w-0 flex-1 truncate text-left font-mono hover:underline"
+                              onClick={() => showFileDiff(c.path, false)}
+                              title="Ver diff"
+                            >
+                              {c.path}
+                            </button>
+                            <span className="shrink-0 text-muted-foreground">
+                              {STATUS_LABEL[c.status] ?? c.status}
+                            </span>
+                            {confirmDiscard === c.path ? (
+                              <span className="flex shrink-0 gap-1">
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  disabled={busy}
+                                  onClick={() => handleDiscard(c.path, untracked)}
+                                >
+                                  Confirmar
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setConfirmDiscard(null)}
+                                >
+                                  Cancelar
+                                </Button>
+                              </span>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={busy}
+                                onClick={() => setConfirmDiscard(c.path)}
+                              >
+                                Descartar
+                              </Button>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Nada a commitar.</p>
+                  )}
 
-              {status.hasRemote && (
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    disabled={busy || status.conflicted}
-                    onClick={() => pull()}
-                  >
-                    Pull
-                  </Button>
-                  <Button
-                    variant="outline"
-                    disabled={busy || status.conflicted}
-                    onClick={() => push()}
-                  >
-                    Push {status.ahead > 0 ? `(${status.ahead})` : ""}
-                  </Button>
-                </div>
-              )}
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Mensagem do commit"
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") void handleCommit();
+                      }}
+                    />
+                    <Button
+                      disabled={busy || !message.trim() || status.clean}
+                      onClick={handleCommit}
+                    >
+                      Commit
+                    </Button>
+                  </div>
 
-              {lastPull && (
-                <div className="rounded-md border bg-muted p-2 text-xs">
-                  {lastPull.alreadyUpToDate
-                    ? "Já está atualizado."
-                    : lastPull.fastForward
-                      ? "Atualizado (fast-forward)."
-                      : lastPull.conflicted
-                        ? "Pull gerou conflitos — resolva acima."
-                        : lastPull.merged
-                          ? "Merge concluído."
-                          : "Pull concluído."}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  {status.hasRemote && (
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        disabled={busy || status.conflicted}
+                        onClick={() => pull()}
+                      >
+                        Pull
+                      </Button>
+                      <Button
+                        variant="outline"
+                        disabled={busy || status.conflicted}
+                        onClick={() => push()}
+                      >
+                        Push {status.ahead > 0 ? `(${status.ahead})` : ""}
+                      </Button>
+                    </div>
+                  )}
+
+                  {lastPull && (
+                    <div className="rounded-md border bg-muted p-2 text-xs">
+                      {lastPull.alreadyUpToDate
+                        ? "Já está atualizado."
+                        : lastPull.fastForward
+                          ? "Atualizado (fast-forward)."
+                          : lastPull.conflicted
+                            ? "Pull gerou conflitos — resolva acima."
+                            : lastPull.merged
+                              ? "Merge concluído."
+                              : "Pull concluído."}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* ── Histórico: lista de commits, clique abre o diff ── */}
+            <TabsContent value="history">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Histórico</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {commits.length > 0 ? (
+                    <ul className="max-h-[28rem] space-y-1 overflow-y-auto">
+                      {commits.map((cm) => (
+                        <li key={cm.hash}>
+                          <button
+                            type="button"
+                            className="w-full rounded-md border px-3 py-2 text-left hover:bg-accent"
+                            onClick={() => showCommitDiff(cm.hash, cm.subject)}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                                {cm.subject}
+                              </span>
+                              <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                                {cm.shortHash}
+                              </span>
+                            </div>
+                            <div className="mt-0.5 text-xs text-muted-foreground">
+                              {cm.authorName}
+                              {formatDate(cm.authoredAt) && ` · ${formatDate(cm.authoredAt)}`}
+                            </div>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Nenhum commit ainda.</p>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* ── Branches: lista, troca e criação ── */}
+            <TabsContent value="branches">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Branches</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {branches.length > 0 ? (
+                    <ul className="max-h-72 space-y-1 overflow-y-auto rounded-md border p-2">
+                      {branches.map((b) => (
+                        <li
+                          key={b.name}
+                          className="flex items-center justify-between gap-2 rounded px-2 py-1 hover:bg-accent"
+                        >
+                          <span className="flex min-w-0 items-center gap-2">
+                            <span className="truncate font-mono text-sm">{b.name}</span>
+                            {b.isCurrent && <Badge variant="secondary">atual</Badge>}
+                          </span>
+                          {!b.isCurrent && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={busy}
+                              onClick={() => checkout(b.name)}
+                            >
+                              Trocar
+                            </Button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Nenhuma branch.</p>
+                  )}
+
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Nome da nova branch"
+                      value={newBranch}
+                      onChange={(e) => setNewBranch(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") void handleCreateBranch();
+                      }}
+                    />
+                    <Button disabled={busy || !newBranch.trim()} onClick={handleCreateBranch}>
+                      Criar
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         )}
       </Column>
+
+      {/* Diálogo de diff (arquivo do working tree ou commit) */}
+      <Dialog open={selectedDiff !== null} onOpenChange={(open) => !open && clearDiff()}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="truncate font-mono text-sm">{selectedDiff?.title}</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[70vh] space-y-4 overflow-y-auto">
+            {selectedDiff?.files.length === 0 && (
+              <p className="text-sm text-muted-foreground">Sem alterações neste diff.</p>
+            )}
+            {selectedDiff?.files.map((f) => (
+              <div key={f.path} className="space-y-1">
+                {selectedDiff.files.length > 1 && (
+                  <div className="flex items-center gap-2 font-mono text-xs text-muted-foreground">
+                    <span className="truncate">{f.path}</span>
+                    <span>{STATUS_LABEL[f.status] ?? f.status}</span>
+                  </div>
+                )}
+                {f.isBinary ? (
+                  <p className="text-sm text-muted-foreground italic">Arquivo binário.</p>
+                ) : (
+                  <div className="rounded-md border p-2 text-xs">
+                    <UnifiedDiff
+                      lines={computeDiff(f.oldText, f.newText)}
+                      emptyLabel="Sem diferenças."
+                    />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </Container>
   );
 }

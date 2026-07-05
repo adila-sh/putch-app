@@ -209,6 +209,266 @@ func (s *SyncService) ResolveConflict(strategy string) error {
 	return s.git.ResolveConflict(s.root(), strategy)
 }
 
+// ── Histórico / branches / diff (Fase 2) ──────────────────────────────────────
+//
+// Fachadas finas sobre git.Service: a UI ganha acesso ao histórico, às branches
+// e aos diffs sem que o binding precise falar com o motor git direto. Devolvem
+// os DTOs do pacote git (mesmo tradeoff do Pull, que já expõe *git.PullResult).
+// Os que dependem de repo checam IsRepo e degradam para um erro de domínio em
+// pt-br, consistente com Commit.
+
+// Log devolve os commits mais recentes (limit <= 0 usa o default do motor).
+func (s *SyncService) Log(limit int) ([]git.CommitInfo, error) {
+	root := s.root()
+	if !s.git.IsRepo(root) {
+		return nil, fmt.Errorf("workspace ainda não está conectado a um repositório")
+	}
+	return s.git.Log(root, limit)
+}
+
+// ListBranches lista as branches locais, marcando a atual.
+func (s *SyncService) ListBranches() ([]git.BranchInfo, error) {
+	root := s.root()
+	if !s.git.IsRepo(root) {
+		return nil, fmt.Errorf("workspace ainda não está conectado a um repositório")
+	}
+	return s.git.ListBranches(root)
+}
+
+// Checkout troca para uma branch existente.
+func (s *SyncService) Checkout(branch string) error {
+	if strings.TrimSpace(branch) == "" {
+		return fmt.Errorf("nome da branch não pode ser vazio")
+	}
+	return s.git.Checkout(s.root(), branch)
+}
+
+// CreateBranch cria uma branch e já troca para ela (fluxo esperado pela UI).
+func (s *SyncService) CreateBranch(name string) error {
+	if strings.TrimSpace(name) == "" {
+		return fmt.Errorf("nome da branch não pode ser vazio")
+	}
+	return s.git.CreateBranch(s.root(), name, true)
+}
+
+// FileDiff devolve o diff de um arquivo alterado (staged=false = working tree).
+func (s *SyncService) FileDiff(path string, staged bool) (*git.DiffResult, error) {
+	if strings.TrimSpace(path) == "" {
+		return nil, fmt.Errorf("caminho do arquivo é obrigatório")
+	}
+	return s.git.FileDiff(s.root(), path, staged)
+}
+
+// CommitDiff devolve o conjunto de diffs de um commit (por sha).
+func (s *SyncService) CommitDiff(sha string) (*git.CommitDiffResult, error) {
+	if strings.TrimSpace(sha) == "" {
+		return nil, fmt.Errorf("sha do commit é obrigatório")
+	}
+	return s.git.CommitDiff(s.root(), sha)
+}
+
+// DiscardFile descarta as mudanças de um arquivo (untracked=true remove o novo).
+func (s *SyncService) DiscardFile(path string, untracked bool) error {
+	if strings.TrimSpace(path) == "" {
+		return fmt.Errorf("caminho do arquivo é obrigatório")
+	}
+	return s.git.DiscardFile(s.root(), path, untracked)
+}
+
+// DiscardFiles descarta várias mudanças de uma vez (rastreados vs não rastreados).
+func (s *SyncService) DiscardFiles(tracked, untracked []string) error {
+	return s.git.DiscardFiles(s.root(), tracked, untracked)
+}
+
+// StashPush guarda as mudanças atuais num stash rotulado.
+func (s *SyncService) StashPush(message string) error {
+	return s.git.StashPush(s.root(), message)
+}
+
+// StashPop restaura o stash mais recente.
+func (s *SyncService) StashPop() error {
+	return s.git.StashPop(s.root())
+}
+
+// ── Pull Requests / code review (Fase 3) ──────────────────────────────────────
+//
+// Fachadas sobre github.Service. owner/repo saem do remoto do workspace
+// (git.RemoteInfo já parseia), então a UI nunca precisa informá-los — nem vê o
+// token, que continua só no .git/config. Exigem login no GitHub + um remoto
+// GitHub e degradam para erro de domínio em pt-br. Devolvem os DTOs do pacote
+// github direto (mesmo tradeoff de Pull/Log). A leitura (3a) precede a escrita
+// (3b): listar/ver PR é o incremento utilizável; review/comment/merge escrevem.
+
+// ownerRepo resolve dono/repositório a partir do remoto do workspace. É o único
+// ponto que traduz "o repo conectado" nos parâmetros que a API do GitHub exige.
+func (s *SyncService) ownerRepo() (string, string, error) {
+	if !s.github.IsAuthenticated() {
+		return "", "", fmt.Errorf("é preciso estar autenticado no GitHub")
+	}
+	root := s.root()
+	if !s.git.IsRepo(root) {
+		return "", "", fmt.Errorf("workspace ainda não está conectado a um repositório")
+	}
+	ri, err := s.git.RemoteInfo(root)
+	if err != nil || ri == nil || ri.URL == "" {
+		return "", "", fmt.Errorf("workspace não tem um remoto configurado")
+	}
+	if !ri.IsGitHub || ri.Owner == "" || ri.Name == "" {
+		return "", "", fmt.Errorf("o remoto do workspace não é um repositório GitHub")
+	}
+	return ri.Owner, ri.Name, nil
+}
+
+// ── Leitura (3a) ──────────────────────────────────────────────────────────────
+
+// ListPullRequests lista PRs do repo. state aceita "open"|"closed"|"all"
+// (vazio = open, default do motor).
+func (s *SyncService) ListPullRequests(state string) ([]github.PullRequestSummary, error) {
+	owner, repo, err := s.ownerRepo()
+	if err != nil {
+		return nil, err
+	}
+	return s.github.ListPullRequests(owner, repo, state)
+}
+
+// GetPullRequest devolve os detalhes completos de um PR (descrição, SHAs,
+// mergeable, contadores).
+func (s *SyncService) GetPullRequest(number int) (*github.PullRequestDetail, error) {
+	owner, repo, err := s.ownerRepo()
+	if err != nil {
+		return nil, err
+	}
+	return s.github.GetPullRequest(owner, repo, number)
+}
+
+// ListPullRequestFiles lista os arquivos alterados no PR (com patch unificado
+// para o render de diff da UI).
+func (s *SyncService) ListPullRequestFiles(number int) ([]github.PullRequestFile, error) {
+	owner, repo, err := s.ownerRepo()
+	if err != nil {
+		return nil, err
+	}
+	return s.github.ListPullRequestFiles(owner, repo, number)
+}
+
+// ListPullRequestCommits lista os commits incluídos no PR (ordem cronológica).
+func (s *SyncService) ListPullRequestCommits(number int) ([]github.PullRequestCommit, error) {
+	owner, repo, err := s.ownerRepo()
+	if err != nil {
+		return nil, err
+	}
+	return s.github.ListPullRequestCommits(owner, repo, number)
+}
+
+// ListReviews lista as reviews submetidas no PR (approve/request_changes/comment).
+func (s *SyncService) ListReviews(number int) ([]github.PullRequestReview, error) {
+	owner, repo, err := s.ownerRepo()
+	if err != nil {
+		return nil, err
+	}
+	return s.github.ListReviews(owner, repo, number)
+}
+
+// ListReviewComments lista os comentários inline (ancorados a linhas do diff).
+func (s *SyncService) ListReviewComments(number int) ([]github.ReviewComment, error) {
+	owner, repo, err := s.ownerRepo()
+	if err != nil {
+		return nil, err
+	}
+	return s.github.ListReviewComments(owner, repo, number)
+}
+
+// ListIssueComments lista os comentários de timeline do PR (não atrelados ao diff).
+func (s *SyncService) ListIssueComments(number int) ([]github.IssueComment, error) {
+	owner, repo, err := s.ownerRepo()
+	if err != nil {
+		return nil, err
+	}
+	return s.github.ListIssueComments(owner, repo, number)
+}
+
+// ── Escrita (3b) ──────────────────────────────────────────────────────────────
+
+// CreatePullRequest abre um PR. head vazio assume a branch atual do workspace
+// (fluxo esperado: "abrir PR da minha branch"); base é obrigatória.
+func (s *SyncService) CreatePullRequest(base, head, title, body string) (*github.PullRequestInfo, error) {
+	if strings.TrimSpace(title) == "" {
+		return nil, fmt.Errorf("título do PR não pode ser vazio")
+	}
+	if strings.TrimSpace(base) == "" {
+		return nil, fmt.Errorf("branch de destino (base) é obrigatória")
+	}
+	owner, repo, err := s.ownerRepo()
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(head) == "" {
+		br, err := s.git.CurrentBranch(s.root())
+		if err != nil {
+			return nil, err
+		}
+		head = br
+	}
+	return s.github.CreatePullRequest(owner, repo, base, head, title, body)
+}
+
+// CreateIssueComment posta um comentário de timeline no PR (texto puro).
+func (s *SyncService) CreateIssueComment(number int, body string) (*github.IssueComment, error) {
+	if strings.TrimSpace(body) == "" {
+		return nil, fmt.Errorf("comentário não pode ser vazio")
+	}
+	owner, repo, err := s.ownerRepo()
+	if err != nil {
+		return nil, err
+	}
+	return s.github.CreateIssueComment(owner, repo, number, body)
+}
+
+// CreateReview submete uma review. event aceita APPROVE|REQUEST_CHANGES|COMMENT
+// (vazio = review pendente). comments anexa comentários inline por linha.
+func (s *SyncService) CreateReview(number int, event, body string, comments []github.ReviewCommentInput) (*github.PullRequestReview, error) {
+	owner, repo, err := s.ownerRepo()
+	if err != nil {
+		return nil, err
+	}
+	return s.github.CreateReview(owner, repo, number, event, body, comments)
+}
+
+// CreateReviewComment ancora um comentário a uma linha do diff. side aceita
+// "LEFT" (versão antiga) ou "RIGHT" (nova); commitID é o SHA do head do PR.
+func (s *SyncService) CreateReviewComment(number int, commitID, path string, line int, side, body string) (*github.ReviewComment, error) {
+	if strings.TrimSpace(body) == "" {
+		return nil, fmt.Errorf("comentário não pode ser vazio")
+	}
+	owner, repo, err := s.ownerRepo()
+	if err != nil {
+		return nil, err
+	}
+	return s.github.CreateReviewComment(owner, repo, number, commitID, path, line, side, body)
+}
+
+// ReplyToReviewComment responde a um comentário inline existente (thread).
+func (s *SyncService) ReplyToReviewComment(number int, inReplyTo int64, body string) (*github.ReviewComment, error) {
+	if strings.TrimSpace(body) == "" {
+		return nil, fmt.Errorf("resposta não pode ser vazia")
+	}
+	owner, repo, err := s.ownerRepo()
+	if err != nil {
+		return nil, err
+	}
+	return s.github.ReplyToReviewComment(owner, repo, number, inReplyTo, body)
+}
+
+// MergePullRequest mescla o PR. method aceita "merge"|"squash"|"rebase"
+// (vazio = merge).
+func (s *SyncService) MergePullRequest(number int, method string) error {
+	owner, repo, err := s.ownerRepo()
+	if err != nil {
+		return err
+	}
+	return s.github.MergePullRequest(owner, repo, number, method)
+}
+
 // ── Conectar / clonar workspace ───────────────────────────────────────────────
 
 // ConnectRemote liga o workspace atual a um repositório (o criador publicando).

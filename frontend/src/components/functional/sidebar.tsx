@@ -40,6 +40,7 @@ import {
   FlaskConical,
   FolderOpen,
   GitBranch,
+  GitPullRequest,
   Globe,
   History,
   Home,
@@ -97,7 +98,15 @@ const accountItems = [
     to: "/panel/git" as const,
     label: "Git",
     icon: GitBranch,
-    isActive: (path: string) => path.startsWith("/panel/git"),
+    // Não casa /panel/git/pull-requests para não destacar dois itens ao mesmo tempo.
+    isActive: (path: string) =>
+      path.startsWith("/panel/git") && !path.startsWith("/panel/git/pull-requests"),
+  },
+  {
+    to: "/panel/git/pull-requests" as const,
+    label: "Pull Requests",
+    icon: GitPullRequest,
+    isActive: (path: string) => path.startsWith("/panel/git/pull-requests"),
   },
   {
     to: "/panel/settings" as const,

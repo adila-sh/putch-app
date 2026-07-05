@@ -23,6 +23,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useDiffBaseline } from "@/stores/history.store";
+import { type DiffLine, UnifiedDiff, computeDiff } from "@/components/functional/unified-diff";
 import { strMap } from "../../lib/utils";
 import { ResponseData } from "../../services/request.service";
 
@@ -213,51 +214,6 @@ const nodeMatchesQuery = (value: unknown, keyLabel: string, query: string): bool
   }
 
   return renderLeafValue(value).toLowerCase().includes(q);
-};
-
-// Uma linha do diff unificado: contexto (igual), adicionada ou removida.
-type DiffLine = { type: "ctx" | "add" | "del"; text: string };
-
-// Diff linha a linha clássico via LCS (subsequência comum mais longa).
-// `a` é a versão antiga (baseline) e `b` a atual; linhas só em `a` viram
-// "del", só em `b` viram "add" e as comuns viram "ctx".
-const diffLines = (a: string[], b: string[]): DiffLine[] => {
-  const n = a.length;
-  const m = b.length;
-
-  // Matriz de comprimentos da LCS: lcs[i][j] = LCS de a[i:] e b[j:].
-  const lcs: number[][] = Array.from({ length: n + 1 }, () =>
-    Array.from({ length: m + 1 }, () => 0),
-  );
-  for (let i = n - 1; i >= 0; i--) {
-    for (let j = m - 1; j >= 0; j--) {
-      lcs[i][j] =
-        a[i] === b[j]
-          ? lcs[i + 1][j + 1] + 1
-          : Math.max(lcs[i + 1][j], lcs[i][j + 1]);
-    }
-  }
-
-  // Reconstrói a sequência de operações percorrendo a matriz.
-  const out: DiffLine[] = [];
-  let i = 0;
-  let j = 0;
-  while (i < n && j < m) {
-    if (a[i] === b[j]) {
-      out.push({ type: "ctx", text: a[i] });
-      i++;
-      j++;
-    } else if (lcs[i + 1][j] >= lcs[i][j + 1]) {
-      out.push({ type: "del", text: a[i] });
-      i++;
-    } else {
-      out.push({ type: "add", text: b[j] });
-      j++;
-    }
-  }
-  while (i < n) out.push({ type: "del", text: a[i++] });
-  while (j < m) out.push({ type: "add", text: b[j++] });
-  return out;
 };
 
 interface JsonNodeProps {
@@ -505,8 +461,7 @@ export default function ResponseView({ response }: ResponseViewProps) {
       // Ao menos um não é JSON — mantém o texto cru dos dois.
     }
 
-    if (oldText === newText) return [];
-    return diffLines(oldText.split("\n"), newText.split("\n"));
+    return computeDiff(oldText, newText);
   }, [diffBaseline, response.body]);
 
   // Baixa o corpo da resposta como arquivo (.json se JSON, senão .txt).
@@ -675,40 +630,10 @@ export default function ResponseView({ response }: ResponseViewProps) {
                       <div className="text-xs text-muted-foreground select-none">
                         Comparando com a execução anterior
                       </div>
-                      {diffResult.length === 0 ? (
-                        <div className="text-muted-foreground italic">
-                          Sem diferenças em relação à execução anterior.
-                        </div>
-                      ) : (
-                        <pre className="whitespace-pre-wrap break-words">
-                          {diffResult.map((line, idx) => {
-                            // Linha adicionada → success; removida → destructive; contexto → neutro
-                            const cls =
-                              line.type === "add"
-                                ? "bg-success/15 border-l-2 border-success text-success"
-                                : line.type === "del"
-                                  ? "bg-destructive/10 border-l-2 border-destructive text-destructive"
-                                  : "border-l-2 border-transparent text-muted-foreground";
-                            const prefix =
-                              line.type === "add"
-                                ? "+"
-                                : line.type === "del"
-                                  ? "-"
-                                  : " ";
-                            return (
-                              <div
-                                key={`diff-${idx}`}
-                                className={`${cls} pl-2 pr-1`}
-                              >
-                                <span className="select-none text-muted-foreground mr-2">
-                                  {prefix}
-                                </span>
-                                {line.text}
-                              </div>
-                            );
-                          })}
-                        </pre>
-                      )}
+                      <UnifiedDiff
+                        lines={diffResult}
+                        emptyLabel="Sem diferenças em relação à execução anterior."
+                      />
                     </div>
                   ) : isJson && viewMode === "tree" ? (
                     <div className="p-4">
