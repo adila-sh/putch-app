@@ -26,6 +26,20 @@ done
 case "${VERBOSE_VAR:-}" in 1 | true | TRUE | yes) VERBOSE=1 ;; esac
 
 PORT="${VITE_PORT:-9245}"
+
+# WebKitGTK-6.0 (runtime do Wails v3 no Linux, a partir do alpha.95) isola os
+# processos web num sandbox via `bwrap` (bubblewrap), que exige user namespaces
+# não-privilegiados. O Ubuntu 24.04 bloqueia isso por padrão
+# (`kernel.apparmor_restrict_unprivileged_userns=1`) e o `bwrap` não é setuid,
+# então o app aborta na inicialização com:
+#   bwrap: setting up uid map: Permission denied
+#   ERROR: Failed to fully launch dbus-proxy ... → SIGTRAP em cgo
+# Desabilitar o sandbox do WebKit destrava o dev local sem mexer em segurança do
+# sistema (sem sudo). Escopo: apenas o `task dev` — o build/pacote de produção
+# não passa por aqui. Exportado antes do CMD para herdar no modo barra e no
+# verbose (`exec`). Herda por toda a árvore: wails3 → binário → WebKit.
+export WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS="${WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS:-1}"
+
 CMD=(wails3 dev -config ./build/config.yml -port "$PORT")
 
 # Verbose: vira um passthrough puro. exec substitui o processo, então sinais
