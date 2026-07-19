@@ -8,6 +8,10 @@ import { setTransport, type RuntimeTransport } from "@wailsio/runtime";
 import { render } from "vitest-browser-react";
 
 const METHOD = {
+  authComplete: 3618535367,
+  authLogout: 3583323782,
+  authStartLogin: 1051065329,
+  authStatus: 1828880498,
   collectionsCreate: 2084708613,
   collectionsFindAll: 4243907705,
   collectionsFindByID: 2654200150,
@@ -48,6 +52,8 @@ const METHOD = {
 } as const;
 
 interface BackendState {
+  authenticated?: boolean;
+  authUser?: unknown;
   collectionCreated?: unknown;
   collections?: unknown[];
   environmentCreated?: unknown;
@@ -88,6 +94,29 @@ function mockTransport(state: BackendState, calls: WailsCall[]): RuntimeTranspor
       calls.push({ methodID: args.methodID, args: callArgs });
 
       switch (args.methodID) {
+        case METHOD.authComplete:
+          return {
+            authenticated: true,
+            user: state.authUser ?? {
+              id: "user-1",
+              name: "Ada",
+              email: "ada@adila.co",
+            },
+            expires_at: "2026-07-20T00:00:00Z",
+          };
+        case METHOD.authLogout:
+        case METHOD.authStartLogin:
+          return undefined;
+        case METHOD.authStatus:
+          return {
+            authenticated: state.authenticated ?? true,
+            user:
+              state.authUser ??
+              (state.authenticated === false
+                ? undefined
+                : { id: "user-1", name: "Ada", email: "ada@adila.co" }),
+            expires_at: "2026-07-20T00:00:00Z",
+          };
         case METHOD.collectionsCreate:
           return (
             state.collectionCreated ?? {

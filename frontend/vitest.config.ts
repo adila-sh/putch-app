@@ -12,6 +12,9 @@ export default defineConfig({
       "@bindings/services": fileURLToPath(
         new URL("./bindings/github.com/joaov/putch/internal/services/index.js", import.meta.url),
       ),
+      "@bindings/auth": fileURLToPath(
+        new URL("./bindings/github.com/joaov/putch/internal/auth/index.js", import.meta.url),
+      ),
       "@bindings/git": fileURLToPath(
         new URL("./bindings/github.com/joaov/putch/internal/git/index.js", import.meta.url),
       ),

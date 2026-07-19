@@ -5,7 +5,9 @@ import (
 	"log"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 
+	identity "github.com/joaov/putch/internal/auth"
 	"github.com/joaov/putch/internal/config"
 	"github.com/joaov/putch/internal/git"
 	"github.com/joaov/putch/internal/github"
@@ -37,11 +39,13 @@ func main() {
 	gh := github.NewService(cfg)
 	gitSvc := git.NewService()
 	sync := services.NewSyncService(st, gitSvc, gh)
+	auth := identity.NewService()
 
 	app := application.New(application.Options{
 		Name:        "putch",
 		Description: "API client desktop",
 		Services: []application.Service{
+			application.NewService(auth),
 			application.NewService(services.NewCollectionsService(st)),
 			application.NewService(services.NewFoldersService(st)),
 			application.NewService(services.NewRequestsService(st)),
@@ -68,7 +72,7 @@ func main() {
 		app.Event.Emit(name, data...)
 	}
 
-	app.Window.NewWithOptions(application.WebviewWindowOptions{
+	window := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:            "putch",
 		Width:            1280,
 		Height:           832,
@@ -78,6 +82,16 @@ func main() {
 		BackgroundColour: application.NewRGB(27, 38, 54),
 		URL:              "/",
 	})
+	auth.AttachWindow(window)
+	for _, event := range []events.WindowEventType{
+		events.Linux.WindowLoadFinished,
+		events.Mac.WebViewDidFinishNavigation,
+		events.Windows.WebViewNavigationCompleted,
+	} {
+		window.OnWindowEvent(event, func(_ *application.WindowEvent) {
+			auth.InjectCompletionBridge()
+		})
+	}
 
 	if err := app.Run(); err != nil {
 		log.Fatal(err)

@@ -22,6 +22,7 @@
     "noFallthroughCasesInSwitch": true,
     "paths": {
       "@/*": ["./src/*"],
+      "@bindings/auth": ["./bindings/github.com/joaov/putch/internal/auth"],
       "@bindings/services": ["./bindings/github.com/joaov/putch/internal/services"],
       "@bindings/git": ["./bindings/github.com/joaov/putch/internal/git"],
       "@bindings/github": ["./bindings/github.com/joaov/putch/internal/github"]
@@ -31,6 +32,7 @@
   },
   "include": [
     "src",
+    "bindings/github.com/joaov/putch/internal/auth/*.js",
     "bindings/github.com/joaov/putch/internal/services/*.js",
     "bindings/github.com/joaov/putch/internal/git/*.js",
     "bindings/github.com/joaov/putch/internal/github/*.js"

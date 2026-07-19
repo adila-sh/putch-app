@@ -1,3 +1,4 @@
+import { Service as AuthService, State as AuthState } from "@bindings/auth";
 import { ErrorAlert } from "@/components/functional/error-alert";
 import {
   Badge,
@@ -13,10 +14,25 @@ import {
 } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { useSync } from "@/hooks/useSync";
+import { useNavigate } from "@tanstack/react-router";
 import { CircleUser, GitBranch, KeyRound, LogIn, LogOut, Settings2 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export default function ProfileView() {
+  const navigate = useNavigate();
   const { account, status, device, busy, error, startLogin, cancelLogin, logout } = useSync();
+  const [identity, setIdentity] = useState<AuthState | null>(null);
+  const [identityBusy, setIdentityBusy] = useState(false);
+
+  useEffect(() => {
+    void AuthService.Status().then(setIdentity);
+  }, []);
+
+  async function logoutIdentity() {
+    setIdentityBusy(true);
+    await AuthService.Logout();
+    await navigate({ to: "/auth", replace: true });
+  }
 
   const authed = account?.authenticated === true;
 
@@ -27,6 +43,32 @@ export default function ProfileView() {
         <Label>Sua conta do GitHub e o estado de sincronização deste workspace.</Label>
 
         {error && <ErrorAlert message={error} />}
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CircleUser strokeWidth={1.5} className="size-4" />
+              Adila
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Row className="items-center justify-between gap-4">
+              <Column className="gap-0.5">
+                <span className="font-medium">{identity?.user?.name || "Conta Adila"}</span>
+                <span className="text-sm text-muted-foreground">{identity?.user?.email}</span>
+              </Column>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={identityBusy}
+                onClick={() => void logoutIdentity()}
+              >
+                <LogOut strokeWidth={1.5} />
+                Sair da Adila
+              </Button>
+            </Row>
+          </CardContent>
+        </Card>
 
         {/* Identidade GitHub */}
         <Card>
