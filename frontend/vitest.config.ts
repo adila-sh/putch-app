@@ -29,10 +29,15 @@ export default defineConfig({
   test: {
     include: ["src/**/*.test.{ts,tsx}"],
     setupFiles: ["./src/test/setup.ts"],
+    // Evita competir por Chromium/CPU com outras suítes do monorepo e torna
+    // o gate local/CI previsível conforme a quantidade de telas crescer.
+    fileParallelism: false,
     browser: {
       enabled: true,
       provider: playwright(),
       headless: true,
+      api: { port: 64315, strictPort: true },
+      connectTimeout: 60_000,
       instances: [{ browser: "chromium" }],
     },
   },
