@@ -16,10 +16,7 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-export default class ErrorBoundary extends Component<
-  ErrorBoundaryProps,
-  ErrorBoundaryState
-> {
+export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { hasError: false };
 
   static getDerivedStateFromError(): ErrorBoundaryState {
@@ -46,8 +43,7 @@ export default class ErrorBoundary extends Component<
         <div className="space-y-1">
           <h2 className="text-lg font-semibold">Algo deu errado</h2>
           <p className="max-w-sm text-sm text-muted-foreground">
-            Ocorreu um erro inesperado ao renderizar esta tela. Tente
-            recarregar para continuar.
+            Ocorreu um erro inesperado ao renderizar esta tela. Tente recarregar para continuar.
           </p>
         </div>
         <div className="flex items-center gap-2">

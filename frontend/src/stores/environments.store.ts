@@ -63,9 +63,7 @@ export const useEnvironmentsStore = create<EnvironmentsState>((set) => ({
       // Merge otimista dos campos editáveis; updated_at é gerido pelo backend
       // e atualiza no próximo load da rota.
       set((s) => ({
-        environments: s.environments.map((e) =>
-          e.id === id ? { ...e, ...input } : e,
-        ),
+        environments: s.environments.map((e) => (e.id === id ? { ...e, ...input } : e)),
       }));
     } catch (err) {
       set({ error: err instanceof Error ? err.message : "Failed to update environment" });

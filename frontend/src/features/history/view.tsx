@@ -25,11 +25,7 @@ import {
 } from "@/components/ui";
 import { ErrorAlert } from "@/components/functional/error-alert";
 import { cn } from "@/lib/utils";
-import {
-  type HistoryEntry,
-  useHistory,
-  useHistoryActions,
-} from "@/stores/history.store";
+import { type HistoryEntry, useHistory, useHistoryActions } from "@/stores/history.store";
 import { ChevronDownIcon, HistoryIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 
@@ -84,8 +80,7 @@ export default function HistoryView() {
               <AlertDialogHeader>
                 <AlertDialogTitle>Limpar histórico?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Todas as execuções registradas serão removidas. Esta ação não
-                  pode ser desfeita.
+                  Todas as execuções registradas serão removidas. Esta ação não pode ser desfeita.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -107,8 +102,8 @@ export default function HistoryView() {
             </EmptyMedia>
             <EmptyTitle>Nenhuma requisição ainda</EmptyTitle>
             <EmptyDescription>
-              As requisições enviadas pelo editor aparecem aqui para você
-              revisitar respostas, headers e duração.
+              As requisições enviadas pelo editor aparecem aqui para você revisitar respostas,
+              headers e duração.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -133,11 +128,7 @@ const HistoryItem = ({
   const [open, setOpen] = useState(false);
 
   return (
-    <Collapsible
-      open={open}
-      onOpenChange={setOpen}
-      className="rounded-lg border border-border"
-    >
+    <Collapsible open={open} onOpenChange={setOpen} className="rounded-lg border border-border">
       <div className="flex items-center gap-3 p-3">
         <CollapsibleTrigger className="flex flex-1 items-center gap-3 overflow-hidden text-left">
           <ChevronDownIcon
@@ -152,12 +143,7 @@ const HistoryItem = ({
           <span className="flex-1 truncate text-sm" title={entry.url}>
             {entry.url}
           </span>
-          <span
-            className={cn(
-              "shrink-0 text-sm font-medium tabular-nums",
-              statusClass(entry),
-            )}
-          >
+          <span className={cn("shrink-0 text-sm font-medium tabular-nums", statusClass(entry))}>
             {entry.status === 0 ? "ERRO" : entry.status}
           </span>
           <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
@@ -183,38 +169,23 @@ const HistoryItem = ({
 
           <HeadersBlock title="Request headers" headers={entry.requestHeaders} />
 
-          {entry.requestBody && (
-            <BodyBlock title="Request body" body={entry.requestBody} />
-          )}
+          {entry.requestBody && <BodyBlock title="Request body" body={entry.requestBody} />}
 
-          <HeadersBlock
-            title="Response headers"
-            headers={entry.responseHeaders}
-          />
+          <HeadersBlock title="Response headers" headers={entry.responseHeaders} />
 
-          {entry.responseBody && (
-            <BodyBlock title="Response body" body={entry.responseBody} />
-          )}
+          {entry.responseBody && <BodyBlock title="Response body" body={entry.responseBody} />}
         </div>
       </CollapsibleContent>
     </Collapsible>
   );
 };
 
-const HeadersBlock = ({
-  title,
-  headers,
-}: {
-  title: string;
-  headers: Record<string, string>;
-}) => {
+const HeadersBlock = ({ title, headers }: { title: string; headers: Record<string, string> }) => {
   const items = Object.entries(headers ?? {});
   if (items.length === 0) return null;
   return (
     <div className="space-y-1">
-      <Label className="text-xs font-medium text-muted-foreground">
-        {title}
-      </Label>
+      <Label className="text-xs font-medium text-muted-foreground">{title}</Label>
       <div className="rounded border border-border bg-muted/40 p-2 text-xs">
         {items.map(([k, v]) => (
           <div key={k} className="flex gap-2">

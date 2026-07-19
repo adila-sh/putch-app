@@ -1,9 +1,5 @@
 import { CollectionsService } from "@/services/collections.service";
-import {
-  type CreateRequestData,
-  type Request,
-  RequestService,
-} from "@/services/request.service";
+import { type CreateRequestData, type Request, RequestService } from "@/services/request.service";
 import { create } from "zustand";
 
 interface RequestsState {

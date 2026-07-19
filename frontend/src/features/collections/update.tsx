@@ -13,9 +13,7 @@ export default function CollectionUpdate() {
   const collection = collections.find((c) => c.id === collectionId);
 
   if (!collection) {
-    return (
-      <div className="p-6 text-sm text-muted-foreground">Coleção não encontrada.</div>
-    );
+    return <div className="p-6 text-sm text-muted-foreground">Coleção não encontrada.</div>;
   }
 
   const handleSubmit = async (input: CollectionFormValues) => {

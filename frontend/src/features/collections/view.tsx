@@ -102,10 +102,7 @@ export default function CollectionsView() {
       if (status === "pinned" && !c.pinned) return false;
       if (status === "deprecated" && !c.deprecated) return false;
       if (!q) return true;
-      return (
-        c.name.toLowerCase().includes(q) ||
-        (c.description ?? "").toLowerCase().includes(q)
-      );
+      return c.name.toLowerCase().includes(q) || (c.description ?? "").toLowerCase().includes(q);
     });
 
     const bySort = (a: Collection, b: Collection) => {
@@ -235,13 +232,7 @@ export default function CollectionsView() {
   );
 }
 
-const CollectionItem = ({
-  collection,
-  view,
-}: {
-  collection: Collection;
-  view: ViewMode;
-}) => {
+const CollectionItem = ({ collection, view }: { collection: Collection; view: ViewMode }) => {
   const { deleteCollection } = useCollections();
 
   const description = collection.description?.trim() || "Sem descrição";
@@ -293,9 +284,7 @@ const CollectionItem = ({
 
   const titleRow = (
     <div className="flex min-w-0 items-center gap-2">
-      <span className="truncate font-semibold leading-none tracking-tight">
-        {collection.name}
-      </span>
+      <span className="truncate font-semibold leading-none tracking-tight">{collection.name}</span>
       {collection.pinned ? (
         <PinIcon className="size-3.5 shrink-0 fill-current text-info" aria-label="Fixada" />
       ) : null}
@@ -372,10 +361,7 @@ const CollectionItem = ({
 
   if (view === "list") {
     return (
-      <Link
-        to="/panel/collections/$collectionId/requests"
-        params={{ collectionId: collection.id }}
-      >
+      <Link to="/panel/collections/$collectionId/requests" params={{ collectionId: collection.id }}>
         <Card className={cardClass}>
           <div className="flex items-center gap-4 p-4">
             {icon}
@@ -392,10 +378,7 @@ const CollectionItem = ({
   }
 
   return (
-    <Link
-      to="/panel/collections/$collectionId/requests"
-      params={{ collectionId: collection.id }}
-    >
+    <Link to="/panel/collections/$collectionId/requests" params={{ collectionId: collection.id }}>
       <Card className={cn(cardClass, "flex h-full flex-col")}>
         <div className="flex items-start justify-between gap-3 p-4 pb-3">
           {icon}

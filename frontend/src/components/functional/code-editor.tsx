@@ -13,7 +13,11 @@ import { cn } from "@/lib/utils";
  * `var(--…)`, acompanha automaticamente claro/escuro/sépia.
  */
 const themedHighlight = HighlightStyle.define([
-  { tag: [t.propertyName, t.definition(t.propertyName)], color: "var(--foreground)", fontWeight: "600" },
+  {
+    tag: [t.propertyName, t.definition(t.propertyName)],
+    color: "var(--foreground)",
+    fontWeight: "600",
+  },
   { tag: t.string, color: "var(--muted-foreground)" },
   { tag: [t.number, t.bool, t.null, t.keyword], color: "var(--foreground)" },
   { tag: [t.punctuation, t.brace, t.bracket, t.separator], color: "var(--muted-foreground)" },
@@ -93,12 +97,12 @@ export default function CodeEditor({
         "&.cm-focused": { outline: "none" },
         ".cm-content": {
           caretColor: "var(--foreground)",
-          fontFamily:
-            "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+          fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
         },
         ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--foreground)" },
-        "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection":
-          { backgroundColor: "var(--accent)" },
+        "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection": {
+          backgroundColor: "var(--accent)",
+        },
         ".cm-placeholder": { color: "var(--muted-foreground)" },
       }),
       syntaxHighlighting(themedHighlight),

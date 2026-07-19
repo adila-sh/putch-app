@@ -63,9 +63,7 @@ export default function CollectionEditDialog({
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Editar coleção</DialogTitle>
-          <DialogDescription>
-            Altere o nome e outras propriedades desta coleção.
-          </DialogDescription>
+          <DialogDescription>Altere o nome e outras propriedades desta coleção.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -106,10 +104,7 @@ export default function CollectionEditDialog({
                       : "border-transparent hover:border-muted-foreground/40",
                   )}
                 >
-                  <Folder
-                    option={opt}
-                    className="absolute top-0 left-0 origin-top-left scale-50"
-                  />
+                  <Folder option={opt} className="absolute top-0 left-0 origin-top-left scale-50" />
                 </button>
               ))}
             </div>

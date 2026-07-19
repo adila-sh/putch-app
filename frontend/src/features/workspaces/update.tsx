@@ -13,9 +13,7 @@ export default function WorkspaceUpdate() {
   const workspace = workspaces.find((w) => w.id === workspaceId);
 
   if (!workspace) {
-    return (
-      <div className="p-6 text-sm text-muted-foreground">Workspace não encontrado.</div>
-    );
+    return <div className="p-6 text-sm text-muted-foreground">Workspace não encontrado.</div>;
   }
 
   const handleSubmit = async (values: WorkspaceFormValues) => {

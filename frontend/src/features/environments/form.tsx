@@ -100,10 +100,7 @@ export default function EnvironmentForm({
 
         <Row className="flex items-center justify-between">
           <Label>Fixar no topo</Label>
-          <Switch
-            checked={form.pinned}
-            onCheckedChange={(v) => setForm({ ...form, pinned: v })}
-          />
+          <Switch checked={form.pinned} onCheckedChange={(v) => setForm({ ...form, pinned: v })} />
         </Row>
 
         <Row className="flex items-center justify-between">

@@ -1,12 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": [
-    "typescript",
-    "unicorn",
-    "oxc",
-    "react",
-    "jsx-a11y"
-  ],
+  "plugins": ["typescript", "unicorn", "oxc", "react", "jsx-a11y"],
   "categories": {
     "correctness": "error"
   },
@@ -16,11 +10,5 @@
     "browser": true,
     "es2024": true
   },
-  "ignorePatterns": [
-    "dist",
-    "node_modules",
-    "bindings",
-    "vite.config.js",
-    "vite.config.d.ts"
-  ]
+  "ignorePatterns": ["dist", "node_modules", "bindings", "vite.config.js", "vite.config.d.ts"]
 }

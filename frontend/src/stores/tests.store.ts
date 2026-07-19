@@ -1,4 +1,9 @@
-import { type Test, type TestInput, type TestRunResult, TestService } from "@/services/tests.service";
+import {
+  type Test,
+  type TestInput,
+  type TestRunResult,
+  TestService,
+} from "@/services/tests.service";
 import { create } from "zustand";
 
 interface TestsState {
@@ -89,4 +94,3 @@ export const useTestsStore = create<TestsState>((set) => ({
     }
   },
 }));
-

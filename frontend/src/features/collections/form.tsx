@@ -107,10 +107,7 @@ export default function CollectionForm({
                     : "border-transparent hover:border-muted-foreground/40",
                 )}
               >
-                <Folder
-                  option={opt}
-                  className="absolute top-0 left-0 origin-top-left scale-50"
-                />
+                <Folder option={opt} className="absolute top-0 left-0 origin-top-left scale-50" />
               </button>
             ))}
           </div>
@@ -118,10 +115,7 @@ export default function CollectionForm({
 
         <Row className="flex items-center justify-between">
           <Label>Fixar no topo</Label>
-          <Switch
-            checked={form.pinned}
-            onCheckedChange={(v) => setForm({ ...form, pinned: v })}
-          />
+          <Switch checked={form.pinned} onCheckedChange={(v) => setForm({ ...form, pinned: v })} />
         </Row>
 
         <Row className="flex items-center justify-between">
@@ -137,11 +131,7 @@ export default function CollectionForm({
         <Button variant="ghost" className="w-full" type="link" to="/panel/collections">
           Voltar
         </Button>
-        <Button
-          className="w-full"
-          onClick={handleSubmit}
-          disabled={loading || !form.name.trim()}
-        >
+        <Button className="w-full" onClick={handleSubmit} disabled={loading || !form.name.trim()}>
           {loading ? pendingLabel : submitLabel}
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
         </Button>

@@ -5,9 +5,6 @@ import { useTestsStore } from "@/stores/tests.store";
 
 export const Route = createFileRoute("/panel/tests/")({
   loader: () =>
-    Promise.all([
-      useTestsStore.getState().load(),
-      useRequestsIndexStore.getState().load(),
-    ]),
+    Promise.all([useTestsStore.getState().load(), useRequestsIndexStore.getState().load()]),
   component: TestsView,
 });

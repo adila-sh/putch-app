@@ -62,9 +62,7 @@ export default function BodyPanel({
             form={form}
             files={files}
             multipart={bodyType === "multipart"}
-            onChange={(next) =>
-              onChange({ body, bodyType, form: next.form, files: next.files })
-            }
+            onChange={(next) => onChange({ body, bodyType, form: next.form, files: next.files })}
           />
         ) : (
           <BodyEditor

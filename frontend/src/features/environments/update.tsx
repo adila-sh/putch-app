@@ -14,9 +14,7 @@ export default function EnvironmentUpdate() {
   const environment = environments.find((e) => e.id === environmentId);
 
   if (!environment) {
-    return (
-      <div className="p-6 text-sm text-muted-foreground">Ambiente não encontrado.</div>
-    );
+    return <div className="p-6 text-sm text-muted-foreground">Ambiente não encontrado.</div>;
   }
 
   const handleSubmit = async (values: EnvironmentFormValues) => {

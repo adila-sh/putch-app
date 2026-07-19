@@ -38,10 +38,10 @@ interface TabState {
 }
 
 const getStatusColor = (status: number): string => {
-  if (status >= 200 && status < 300) return "text-success";   // 2xx — sucesso
-  if (status >= 300 && status < 400) return "text-info";      // 3xx — redirecionamento
-  if (status >= 400 && status < 500) return "text-warning";   // 4xx — erro do cliente
-  if (status >= 500) return "text-destructive";               // 5xx — erro do servidor
+  if (status >= 200 && status < 300) return "text-success"; // 2xx — sucesso
+  if (status >= 300 && status < 400) return "text-info"; // 3xx — redirecionamento
+  if (status >= 400 && status < 500) return "text-warning"; // 4xx — erro do cliente
+  if (status >= 500) return "text-destructive"; // 5xx — erro do servidor
   return "text-muted-foreground";
 };
 
@@ -71,14 +71,12 @@ const highlightJson = (src: string): string => {
   // Strings (incluindo as que são chave de objeto, detectadas pelo ":" seguinte),
   // depois booleanos/null e por fim números.
   return escaped
-    .replace(
-      /"(?:\\.|[^"\\])*"(\s*:)?/g,
-      (match, isKey) =>
-        isKey
-          // Chave de objeto → token semântico de chave
-          ? `<span class="text-code-key">${match.slice(0, -1)}</span><span class="text-muted-foreground">:</span>`
-          // String valor → token semântico de string
-          : `<span class="text-code-string">${match}</span>`,
+    .replace(/"(?:\\.|[^"\\])*"(\s*:)?/g, (match, isKey) =>
+      isKey
+        ? // Chave de objeto → token semântico de chave
+          `<span class="text-code-key">${match.slice(0, -1)}</span><span class="text-muted-foreground">:</span>`
+        : // String valor → token semântico de string
+          `<span class="text-code-string">${match}</span>`,
     )
     .replace(
       /\b(true|false)\b/g,
@@ -158,11 +156,11 @@ const leafColorClass = (value: unknown): string => {
   if (value === null) return "text-muted-foreground"; // null → neutro
   switch (typeof value) {
     case "string":
-      return "text-code-string";   // string → token semântico
+      return "text-code-string"; // string → token semântico
     case "number":
-      return "text-code-number";   // número → token semântico
+      return "text-code-number"; // número → token semântico
     case "boolean":
-      return "text-code-boolean";  // boolean → token semântico
+      return "text-code-boolean"; // boolean → token semântico
     default:
       return "text-muted-foreground";
   }
@@ -279,17 +277,9 @@ function JsonNode({ nodeKey, value, path, depth, query }: JsonNodeProps) {
 
   return (
     <div className="py-0.5">
-      {/* role=button proposital: span aninhado num nó clicável da árvore — <button> dentro de <button> é HTML inválido */}
-      {/* oxlint-disable-next-line jsx-a11y/prefer-tag-over-role */}
-      <span role="button"
-        tabIndex={0}
+      <button
+        type="button"
         onClick={() => setExpanded((v) => !v)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            setExpanded((v) => !v);
-          }
-        }}
         className="inline-flex items-center gap-1 cursor-pointer select-none rounded hover:bg-accent/30"
       >
         {open ? (
@@ -306,7 +296,7 @@ function JsonNode({ nodeKey, value, path, depth, query }: JsonNodeProps) {
         )}
         {/* Resumo do container ({…} / […]) → neutro */}
         <span className="text-muted-foreground">{summary}</span>
-      </span>
+      </button>
       <AnimatePresence initial={false}>
         {open && (
           <motion.div
@@ -334,9 +324,7 @@ function JsonNode({ nodeKey, value, path, depth, query }: JsonNodeProps) {
 }
 
 export default function ResponseView({ response }: ResponseViewProps) {
-  const [viewMode, setViewMode] = useState<"pretty" | "raw" | "tree" | "diff">(
-    "pretty",
-  );
+  const [viewMode, setViewMode] = useState<"pretty" | "raw" | "tree" | "diff">("pretty");
   const [treeQuery, setTreeQuery] = useState("");
   // Corpo da resposta da execução anterior da mesma request (null se não há
   // base de comparação). Habilita o modo "Diff".
@@ -420,10 +408,7 @@ export default function ResponseView({ response }: ResponseViewProps) {
   };
 
   // Tamanho do corpo da resposta em bytes (UTF-8), memoizado.
-  const bodySize = useMemo(
-    () => new TextEncoder().encode(response.body).length,
-    [response.body],
-  );
+  const bodySize = useMemo(() => new TextEncoder().encode(response.body).length, [response.body]);
 
   // JSON parseado para a árvore; null se não for JSON válido.
   const parsedBody = useMemo<unknown>(() => {
@@ -573,11 +558,12 @@ export default function ResponseView({ response }: ResponseViewProps) {
       <div className="flex-1 overflow-y-auto">
         {/* Payload */}
         <div className="border-b border-border">
-          <button
-            onClick={() => toggleTab("payload")}
-            className="w-full px-4 py-3 flex items-center justify-between hover:bg-accent/50 transition-colors"
-          >
-            <div className="flex items-center gap-2">
+          <div className="flex items-center hover:bg-accent/50 transition-colors">
+            <button
+              type="button"
+              onClick={() => toggleTab("payload")}
+              className="flex flex-1 items-center gap-2 px-4 py-3 text-left"
+            >
               <motion.div
                 animate={{ rotate: tabsOpen.payload ? 90 : 0 }}
                 transition={{ duration: 0.2 }}
@@ -586,23 +572,11 @@ export default function ResponseView({ response }: ResponseViewProps) {
               </motion.div>
               <Code size={16} className="text-muted-foreground" />
               <span className="font-medium text-foreground">Payload</span>
-            </div>
-            {/* Botão copiar: span com role=button para não aninhar <button> no toggle */}
-            {/* oxlint-disable-next-line jsx-a11y/prefer-tag-over-role */}
-            <span role="button"
-              tabIndex={0}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleCopyPayload();
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleCopyPayload();
-                }
-              }}
-              className="inline-flex h-7 w-7 items-center justify-center rounded hover:bg-accent transition-colors"
+            </button>
+            <button
+              type="button"
+              onClick={handleCopyPayload}
+              className="mr-4 inline-flex h-7 w-7 items-center justify-center rounded hover:bg-accent transition-colors"
               title="Copiar payload"
               aria-label="Copiar payload"
             >
@@ -611,8 +585,8 @@ export default function ResponseView({ response }: ResponseViewProps) {
               ) : (
                 <Copy size={14} className="text-muted-foreground" />
               )}
-            </span>
-          </button>
+            </button>
+          </div>
           <AnimatePresence>
             {tabsOpen.payload && (
               <motion.div

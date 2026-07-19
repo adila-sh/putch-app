@@ -113,12 +113,7 @@ function FileRow({ row, onKeyChange, onValueChange, onRemove }: FileRowProps) {
   );
 }
 
-export default function FormDataEditor({
-  form,
-  files,
-  multipart,
-  onChange,
-}: FormDataEditorProps) {
+export default function FormDataEditor({ form, files, multipart, onChange }: FormDataEditorProps) {
   const [formRows, setFormRows] = useState<Row[]>(toRows(form));
   const [fileRows, setFileRows] = useState<Row[]>(toRows(files));
 

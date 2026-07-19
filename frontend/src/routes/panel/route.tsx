@@ -9,9 +9,6 @@ export const Route = createFileRoute("/panel")({
   // disponíveis em todas as páginas. Ao trocar de workspace o router invalida
   // estas rotas e os environments recarregam no escopo do novo workspace.
   loader: () =>
-    Promise.all([
-      useWorkspacesStore.getState().load(),
-      useEnvironmentsStore.getState().load(),
-    ]),
+    Promise.all([useWorkspacesStore.getState().load(), useEnvironmentsStore.getState().load()]),
   component: PanelLayout,
 });

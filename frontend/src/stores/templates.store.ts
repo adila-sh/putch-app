@@ -87,7 +87,5 @@ export function useTemplates(): RequestTemplate[] {
 }
 
 export function useTemplateActions() {
-  return useTemplatesStore(
-    useShallow((s) => ({ add: s.add, remove: s.remove })),
-  );
+  return useTemplatesStore(useShallow((s) => ({ add: s.add, remove: s.remove })));
 }

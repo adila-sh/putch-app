@@ -14,10 +14,7 @@ export type { Request, RequestConfig, ResponseData } from "@bindings/services";
  * deixando opcionais os campos que o service preenche com default
  * (incl. os campos novos do backend: params/body_type/form/files/auth/timeout).
  */
-export type CreateRequestData = Pick<
-  RequestInput,
-  "name" | "collection_id" | "url" | "method"
-> &
+export type CreateRequestData = Pick<RequestInput, "name" | "collection_id" | "url" | "method"> &
   Partial<
     Pick<
       RequestInput,

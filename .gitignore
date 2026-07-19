@@ -22,6 +22,8 @@ bin/
 .task/
 frontend/bindings/
 frontend/dist/
+frontend/.vitest-attachments/
+frontend/src/**/__screenshots__/
 
 # Editor directories and files
 .vscode/*

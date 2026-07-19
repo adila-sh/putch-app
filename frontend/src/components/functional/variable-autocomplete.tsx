@@ -367,11 +367,7 @@ const VariableAutocomplete = forwardRef<VariableAutocompleteRef, VariableAutocom
             aria-label={revealed ? "Ocultar valor" : "Mostrar valor"}
             tabIndex={-1}
           >
-            {revealed ? (
-              <EyeOffIcon className="h-4 w-4" />
-            ) : (
-              <EyeIcon className="h-4 w-4" />
-            )}
+            {revealed ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
           </button>
         )}
 

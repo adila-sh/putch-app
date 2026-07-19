@@ -30,19 +30,20 @@ canal interno do runtime (`window.webkit.messageHandlers.external.postMessage`
 no Linux/macOS, `window.chrome.webview.postMessage` no Windows) — não há API
 pública para isso. Edges válidas: `n/ne/e/se/s/sw/w/nw` + `-resize`.
 
-### Versão do runtime DEVE bater com o Go
+### Versões do Go, CLI e runtime web
 
-`@wailsio/runtime` (frontend) e `github.com/wailsapp/wails/v3` (go.mod) são
-alpha sincronizados — **pinar exato**, sem `^`. Hoje ambos em `alpha.95`. Caret
-em prerelease puxa alpha mais novo e descasa o IPC. Ao bumpar um, bumpar o
-outro e rodar `bun install` + restart do `task dev`.
-
-**Três lugares, não dois**: além de `go.mod` e `package.json`, o **CLI `wails3`**
-(instalado global via `go install .../cmd/wails3@vX`) também precisa bater — é ele
-que gera as bindings e roda `wails3 dev`. Ao bumpar, rode
+O módulo `github.com/wailsapp/wails/v3` e o CLI `wails3` precisam usar a mesma
+versão — hoje `v3.0.0-alpha2.117`. É o CLI que gera as bindings e executa
+`wails3 dev`; uma versão diferente pode gerar artefatos incompatíveis. Ao
+atualizar, rode
 `go install github.com/wailsapp/wails/v3/cmd/wails3@<versão>` e confira com
-`wails3 version`. As bindings geradas por um CLI de versão errada podem descasar
-do módulo.
+`wails3 version`.
+
+O `@wailsio/runtime` passou a ter numeração/publicação independente: o runtime
+incluído no Wails `alpha2.117` ainda declara `3.0.0-alpha.97`, que é também a
+versão mais recente publicada no npm. Mantenha-o pinado exatamente (sem `^`) e,
+ao atualizar qualquer parte da stack, confira a versão declarada em
+`internal/runtime/desktop/@wailsio/runtime/package.json` no módulo Wails alvo.
 
 ### Deps de sistema (Linux): GTK4 + WebKitGTK-6.0 desde o alpha.95
 
@@ -151,8 +152,12 @@ arrays `STAGES`/`LABELS` em `build/dev.sh` (regex ERE casado linha a linha).
 
 - `task typecheck` (`tsc -b`) — **hard gate**, espelha o CI. Sempre rodar antes
   de considerar uma mudança de frontend pronta.
+- `task test:frontend` — testes de tela do Vitest Browser Mode em Chromium
+  headless. Usa transporte Wails simulado em `frontend/src/test/render-app.tsx`;
+  bindings, router, stores e componentes continuam reais.
 - `task check` — espelho completo do CI (gofmt/vet/`go test -race`/build Go +
-  typecheck bloqueantes; lint/format informativos via `ignore_error`).
+  typecheck/testes de tela bloqueantes; lint/format informativos via
+  `ignore_error`).
 - `go test -race ./...` é **gate bloqueante** no CI (job `backend`) e em
   `task check`/`task test`. `internal/store` (incl. escrita YAML atômica e o
   `Store.mu`) e `internal/services` têm cobertura; manter verde ao mexer no

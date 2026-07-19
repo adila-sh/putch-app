@@ -8,10 +8,7 @@ import { cn } from "@/lib/utils";
 
 const tapSpring = { type: "spring", stiffness: 400, damping: 25 } as const;
 
-function ControlButton({
-  className,
-  ...props
-}: React.ComponentProps<typeof motion.button>) {
+function ControlButton({ className, ...props }: React.ComponentProps<typeof motion.button>) {
   return (
     <motion.button
       type="button"

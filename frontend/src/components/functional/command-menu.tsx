@@ -78,15 +78,11 @@ export default function CommandMenu() {
           <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>
 
           <CommandGroup heading="Navegação">
-            <CommandItem
-              onSelect={() => runCommand(() => navigate({ to: "/panel/collections" }))}
-            >
+            <CommandItem onSelect={() => runCommand(() => navigate({ to: "/panel/collections" }))}>
               <Folder />
               <span>Coleções</span>
             </CommandItem>
-            <CommandItem
-              onSelect={() => runCommand(() => navigate({ to: "/panel/environments" }))}
-            >
+            <CommandItem onSelect={() => runCommand(() => navigate({ to: "/panel/environments" }))}>
               <Globe />
               <span>Environments</span>
             </CommandItem>
@@ -94,9 +90,7 @@ export default function CommandMenu() {
               <FlaskConical />
               <span>Testes</span>
             </CommandItem>
-            <CommandItem
-              onSelect={() => runCommand(() => navigate({ to: "/panel/history" }))}
-            >
+            <CommandItem onSelect={() => runCommand(() => navigate({ to: "/panel/history" }))}>
               <History />
               <span>Histórico</span>
             </CommandItem>
@@ -104,15 +98,11 @@ export default function CommandMenu() {
               <GitBranch />
               <span>Git</span>
             </CommandItem>
-            <CommandItem
-              onSelect={() => runCommand(() => navigate({ to: "/panel/workspaces" }))}
-            >
+            <CommandItem onSelect={() => runCommand(() => navigate({ to: "/panel/workspaces" }))}>
               <Layers />
               <span>Workspaces</span>
             </CommandItem>
-            <CommandItem
-              onSelect={() => runCommand(() => navigate({ to: "/panel/settings" }))}
-            >
+            <CommandItem onSelect={() => runCommand(() => navigate({ to: "/panel/settings" }))}>
               <Settings />
               <span>Configurações</span>
             </CommandItem>

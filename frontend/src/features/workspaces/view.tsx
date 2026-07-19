@@ -67,10 +67,7 @@ export default function WorkspacesView() {
       if (status === "pinned" && !ws.pinned) return false;
       if (status === "active" && ws.id !== activeId) return false;
       if (!q) return true;
-      return (
-        ws.name.toLowerCase().includes(q) ||
-        (ws.description ?? "").toLowerCase().includes(q)
-      );
+      return ws.name.toLowerCase().includes(q) || (ws.description ?? "").toLowerCase().includes(q);
     });
 
     const bySort = (a: Workspace, b: Workspace) => {

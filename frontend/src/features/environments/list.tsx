@@ -20,14 +20,7 @@ import {
 } from "@/stores/selected-environment.store";
 import { useWorkspacesStore } from "@/stores/workspaces.store";
 import { Link } from "@tanstack/react-router";
-import {
-  ClockIcon,
-  EllipsisIcon,
-  GlobeIcon,
-  PencilIcon,
-  PinIcon,
-  Trash2Icon,
-} from "lucide-react";
+import { ClockIcon, EllipsisIcon, GlobeIcon, PencilIcon, PinIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
 
 export type ViewMode = "list" | "grid";
@@ -52,13 +45,7 @@ export default function EnvironmentsList({ environments, view }: EnvironmentsLis
   );
 }
 
-const EnvironmentItem = ({
-  environment,
-  view,
-}: {
-  environment: Environment;
-  view: ViewMode;
-}) => {
+const EnvironmentItem = ({ environment, view }: { environment: Environment; view: ViewMode }) => {
   const { deleteEnvironment } = useEnvironments();
   // A seleção de ambiente é por workspace ativo — mesmo modelo do sidebar compacto.
   const workspaceId = useWorkspacesStore((s) => s.activeId) ?? "";
@@ -96,9 +83,7 @@ const EnvironmentItem = ({
         e.preventDefault();
         e.stopPropagation();
       }}
-      onCheckedChange={(v) =>
-        setSelectedEnvironmentId(v ? environment.id : null, workspaceId)
-      }
+      onCheckedChange={(v) => setSelectedEnvironmentId(v ? environment.id : null, workspaceId)}
     />
   );
 
@@ -189,9 +174,7 @@ const EnvironmentItem = ({
                 <CardTitle className="truncate text-base">{environment.name}</CardTitle>
                 {badges}
               </div>
-              <CardDescription className="line-clamp-1 text-sm">
-                {description}
-              </CardDescription>
+              <CardDescription className="line-clamp-1 text-sm">{description}</CardDescription>
             </div>
             <div className="flex shrink-0 items-center gap-4">
               {meta}
@@ -205,10 +188,7 @@ const EnvironmentItem = ({
   }
 
   return (
-    <Link
-      to="/panel/environments/$environmentId/update"
-      params={{ environmentId: environment.id }}
-    >
+    <Link to="/panel/environments/$environmentId/update" params={{ environmentId: environment.id }}>
       <Card className={cn(cardClass, "flex h-full flex-col")}>
         <div className="relative flex h-28 items-center justify-center overflow-hidden border-b border-border/50 bg-muted/30">
           <GlobeIcon className="size-10 text-muted-foreground" />

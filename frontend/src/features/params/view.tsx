@@ -75,9 +75,7 @@ export default function QueryParamsEditor({ params, onChange }: QueryParamsEdito
                 onChange={(value) => updateParam(index, "key", value)}
                 placeholder="Nome do parâmetro"
                 className={`${autocompleteClass} flex-1`}
-                fetchSuggestions={(prefix) =>
-                  PredictionService.suggest({ field: "param", prefix })
-                }
+                fetchSuggestions={(prefix) => PredictionService.suggest({ field: "param", prefix })}
               />
               <VariableAutocomplete
                 value={param.value}

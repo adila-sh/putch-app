@@ -59,18 +59,13 @@ export default function EnvironmentsView() {
       if (status === "pinned" && !e.pinned) return false;
       if (status === "deprecated" && !e.deprecated) return false;
       if (!q) return true;
-      return (
-        e.name.toLowerCase().includes(q) ||
-        (e.description ?? "").toLowerCase().includes(q)
-      );
+      return e.name.toLowerCase().includes(q) || (e.description ?? "").toLowerCase().includes(q);
     });
 
     const bySort = (a: Environment, b: Environment) => {
       if (sort === "name") return a.name.localeCompare(b.name, "pt-BR");
       if (sort === "vars") {
-        return (
-          Object.keys(b.variables ?? {}).length - Object.keys(a.variables ?? {}).length
-        );
+        return Object.keys(b.variables ?? {}).length - Object.keys(a.variables ?? {}).length;
       }
       // recent: atualizado mais recentemente primeiro (cai pra created_at em
       // ambientes antigos sem updated_at — soft migration do YAML)

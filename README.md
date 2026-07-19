@@ -36,7 +36,7 @@ conflitos) tratando suas coleções como código.
 2. **Bun** — https://bun.sh
 3. **Wails 3 CLI** (alpha)
    ```bash
-   go install github.com/wailsapp/wails/v3/cmd/wails3@latest
+   go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-alpha2.117
    ```
 4. **Task** (taskfile.dev) — https://taskfile.dev/installation/
 
@@ -73,10 +73,13 @@ task package
 task typecheck   # tsc -b — hard gate, espelha o CI
 task check       # espelho completo do CI: gofmt + vet + go test -race + build + typecheck
 task test        # go test -race ./...
+task test:frontend # testes de telas em Chromium via Vitest Browser Mode
 ```
 
 `go test -race ./...` é gate **bloqueante** no CI. `task typecheck` é obrigatório
-antes de considerar qualquer mudança de frontend pronta.
+antes de considerar qualquer mudança de frontend pronta. Na primeira execução
+local dos testes de tela, instale o Chromium com
+`cd frontend && bunx playwright install chromium`.
 
 ## 📁 Estrutura
 
@@ -108,7 +111,7 @@ putch/
 
 - **Frontend**: React 19 + TypeScript + Vite + TailwindCSS 4; TanStack Router;
   Zustand; shadcn/ui; motion; CodeMirror; dnd-kit.
-- **Backend**: Go 1.25 + Wails 3 (`v3.0.0-alpha.95`).
+- **Backend**: Go 1.25 + Wails 3 (`v3.0.0-alpha2.117`).
 - **Persistência**: arquivos YAML no diretório do workspace (versionável por git).
 - **HTTP**: `net/http` (stdlib). **Git**: `go-git` + binário `git`.
   **Scripts**: `goja` (JS puro em Go, sem cgo).
@@ -117,8 +120,9 @@ putch/
 
 - As bindings TS são geradas a partir das structs/métodos Go.
   Regenerar: `task bindings` (ou `wails3 generate bindings -clean=true`).
-- A versão do `@wailsio/runtime` (frontend) **deve** bater exatamente com a de
-  `github.com/wailsapp/wails/v3` (go.mod) — ambas em `alpha.95`, pinadas sem `^`.
+- O módulo Go e o CLI `wails3` devem usar `v3.0.0-alpha2.117`. O runtime web
+  compatível publicado separadamente é `@wailsio/runtime@3.0.0-alpha.97`;
+  todas as versões ficam pinadas sem `^` para manter builds reproduzíveis.
 - Detalhes de arquitetura (janela frameless, drag region, resize no Linux) estão
   em [`CLAUDE.md`](./CLAUDE.md). Estado atual e roadmap em
   [`docs/STATUS.md`](./docs/STATUS.md).

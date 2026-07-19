@@ -117,9 +117,7 @@ export function useHistory(): HistoryEntry[] {
 }
 
 export function useHistoryActions() {
-  return useHistoryStore(
-    useShallow((s) => ({ remove: s.remove, clear: s.clear })),
-  );
+  return useHistoryStore(useShallow((s) => ({ remove: s.remove, clear: s.clear })));
 }
 
 /**

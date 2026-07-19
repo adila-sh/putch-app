@@ -18,7 +18,13 @@ interface SuggestArgs {
  * canônicos, que é o que o ghost-text do VariableAutocomplete consome.
  */
 export const PredictionService = {
-  async suggest({ field, prefix, collectionId, method, limit = 8 }: SuggestArgs): Promise<string[]> {
+  async suggest({
+    field,
+    prefix,
+    collectionId,
+    method,
+    limit = 8,
+  }: SuggestArgs): Promise<string[]> {
     const res = await Wails.Suggest({
       field,
       prefix,

@@ -59,9 +59,15 @@ tasks:
       - go vet ./...
 
   test:
-    summary: Runs the Go test suite (with -race, espelha o CI)
+    summary: Runs the Go test suite (with -race)
     cmds:
       - go test -race ./...
+
+  test:frontend:
+    summary: Runs frontend screen tests in headless Chromium
+    dir: frontend
+    cmds:
+      - bun run test
 
   tidy:
     summary: Tidies go.mod / go.sum
@@ -109,6 +115,7 @@ tasks:
       - task: vet
       - go test -race ./...
       - task: typecheck
+      - task: test:frontend
       - go build -o /tmp/putch-check .
       - rm -f /tmp/putch-check
       - task: quality

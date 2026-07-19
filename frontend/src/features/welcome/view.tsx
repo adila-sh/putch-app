@@ -147,9 +147,7 @@ export default function WelcomeView() {
                         />
                       ) : null}
                       {ws.icon ? <span aria-hidden>{ws.icon}</span> : null}
-                      <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                        {ws.name}
-                      </span>
+                      <span className="min-w-0 flex-1 truncate text-sm font-medium">{ws.name}</span>
                       {ws.pinned ? (
                         <PinIcon className="h-3.5 w-3.5 shrink-0 fill-current text-info" />
                       ) : null}

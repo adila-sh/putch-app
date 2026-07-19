@@ -75,29 +75,21 @@ export default function EnvironmentsListCompact({
               transform: `translateY(${virtualItem.start - scrollMargin}px)`,
             }}
           >
-            {/* role=button proposital: o card contém botões Editar/Excluir — <button> aninhado é HTML inválido */}
-            {/* oxlint-disable-next-line jsx-a11y/prefer-tag-over-role */}
-            <div role="button"
-              tabIndex={0}
-              aria-label={`${isActive ? "Desativar" : "Ativar"} environment ${environment.name}`}
-              aria-pressed={isActive}
-              className={`mb-1 p-2 rounded cursor-pointer transition-colors border ${
-                isActive
-                  ? "bg-accent border-border"
-                  : "hover:bg-accent/50 border-transparent"
+            <div
+              className={`mb-1 flex items-center rounded border transition-colors ${
+                isActive ? "bg-accent border-border" : "hover:bg-accent/50 border-transparent"
               }`}
-              onClick={() =>
-                setSelectedEnvironmentId(isActive ? null : environment.id, workspaceId)
-              }
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  setSelectedEnvironmentId(isActive ? null : environment.id, workspaceId);
-                }
-              }}
             >
-              <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0">
+              <button
+                type="button"
+                aria-label={`${isActive ? "Desativar" : "Ativar"} environment ${environment.name}`}
+                aria-pressed={isActive}
+                className="min-w-0 flex-1 cursor-pointer p-2 text-left"
+                onClick={() =>
+                  setSelectedEnvironmentId(isActive ? null : environment.id, workspaceId)
+                }
+              >
+                <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <h3 className="text-sm font-medium text-foreground truncate">
                       {environment.name}
@@ -112,30 +104,20 @@ export default function EnvironmentsListCompact({
                     {Object.keys(environment.variables).length} variável(is)
                   </p>
                 </div>
-                <div className="flex gap-1 ml-2">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEdit(environment.id);
-                    }}
-                  >
-                    Editar
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="bg-transparent text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDelete(environment.id);
-                    }}
-                    aria-label="Excluir environment"
-                  >
-                    ×
-                  </Button>
-                </div>
+              </button>
+              <div className="mr-2 ml-1 flex gap-1">
+                <Button size="sm" variant="secondary" onClick={() => onEdit(environment.id)}>
+                  Editar
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="bg-transparent text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  onClick={() => onDelete(environment.id)}
+                  aria-label="Excluir environment"
+                >
+                  ×
+                </Button>
               </div>
             </div>
           </div>
